@@ -847,6 +847,40 @@ async function handleAPI(req, res, pathname, parsedUrl) {
     return;
   }
 
+  // 7b2. Save Gemini Key to Server .env
+  if (pathname === '/api/ai/save-key' && req.method === 'POST') {
+    const body = await parseBody(req);
+    const { apiKey = '' } = body;
+    const cleanKey = apiKey.trim();
+
+    try {
+      process.env.GEMINI_API_KEY = cleanKey;
+      const envPath = path.join(__dirname, '.env');
+      let envContent = '';
+      if (fs.existsSync(envPath)) {
+        envContent = fs.readFileSync(envPath, 'utf8');
+      }
+
+      if (envContent.includes('GEMINI_API_KEY=')) {
+        envContent = envContent.replace(/GEMINI_API_KEY=.*/g, `GEMINI_API_KEY=${cleanKey}`);
+      } else {
+        envContent += `\nGEMINI_API_KEY=${cleanKey}\n`;
+      }
+      fs.writeFileSync(envPath, envContent.trim() + '\n', 'utf8');
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Gemini API key saved to server .env successfully!'
+      }));
+      return;
+    } catch (err) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ success: false, error: err.message }));
+      return;
+    }
+  }
+
   // 7c. Full-Featured Survival AI Assistant ("Gemini Rakshak AI")
   if (pathname === '/api/ai/copilot' && req.method === 'POST') {
     const body = await parseBody(req);

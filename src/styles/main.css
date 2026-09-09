@@ -420,3 +420,112 @@ body, html {
 .manual-item-body li {
   margin-bottom: 6px;
 }
+
+/* =================================================================
+   ARUN_SAFE-AI (Cute Red+White Fellow Floating Assistant) STYLES
+   ================================================================= */
+.arun-launcher {
+  position: fixed;
+  bottom: 70px;
+  right: 18px;
+  z-index: 1250;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.arun-launcher-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  border: 3px solid #ffffff;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.55), 0 0 14px rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s;
+  animation: arun-float 3s ease-in-out infinite;
+}
+
+.arun-launcher-btn:hover {
+  transform: scale(1.1) rotate(-4deg);
+  box-shadow: 0 12px 30px rgba(239, 68, 68, 0.75), 0 0 20px rgba(255, 255, 255, 0.6);
+}
+
+.arun-launcher-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #22c55e;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.arun-bubble-hint {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid #ef4444;
+  color: #ffffff;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+@keyframes arun-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes arun-blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+.arun-eyes {
+  transform-origin: center;
+  animation: arun-blink 4s infinite;
+}
+
+.arun-popup-card {
+  position: fixed;
+  bottom: 75px;
+  right: 18px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  height: 520px;
+  max-height: calc(100vh - 95px);
+  background: rgba(15, 23, 42, 0.96);
+  border: 2px solid #ef4444;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(239, 68, 68, 0.35);
+  backdrop-filter: blur(16px);
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: arun-slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes arun-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+

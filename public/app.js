@@ -28,6 +28,14 @@ export const state = {
   manualSearchQuery: '',
   manualActiveCategory: 'all',
   manualExpandedCards: {},
+  isArunPopupOpen: false,
+  arunChatMessages: [
+    {
+      role: 'ai',
+      text: "👋 Tashi Delek! I'm **arun_safe-ai**, your cute Arunachal mountain rescue companion! 🎒 How's your journey going? Need landslide warnings, Sela Tunnel status, or safe spots in your district?",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  ],
   chatMessages: [
     {
       role: 'ai',
@@ -128,14 +136,24 @@ export function speak(text, rate = 1.0) {
 }
 
 // Emergency Audio Siren Alarm
-export function toggleEmergencySiren() {
+export async function toggleEmergencySiren() {
   if (state.isAlarmPlaying) {
+    if (state.alarmInterval) {
+      clearInterval(state.alarmInterval);
+      state.alarmInterval = null;
+    }
     if (state.alarmOscillator) {
       try {
         state.alarmOscillator.stop();
         state.alarmOscillator.disconnect();
       } catch (e) {}
       state.alarmOscillator = null;
+    }
+    if (state.alarmAudioCtx) {
+      try {
+        state.alarmAudioCtx.close();
+      } catch (e) {}
+      state.alarmAudioCtx = null;
     }
     state.isAlarmPlaying = false;
     updateAlarmButtonUI();
@@ -144,30 +162,49 @@ export function toggleEmergencySiren() {
 
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
-    state.alarmAudioCtx = new AudioContext();
-    const osc = state.alarmAudioCtx.createOscillator();
-    const gain = state.alarmAudioCtx.createGain();
+    const ctx = new AudioContext();
+    state.alarmAudioCtx = ctx;
+
+    // Critical: Resume suspended AudioContext to enable playback
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(800, state.alarmAudioCtx.currentTime);
+    osc.frequency.setValueAtTime(820, ctx.currentTime);
 
-    let up = true;
-    setInterval(() => {
-      if (!state.isAlarmPlaying || !state.alarmOscillator) return;
-      osc.frequency.linearRampToValueAtTime(up ? 1150 : 750, state.alarmAudioCtx.currentTime + 0.35);
-      up = !up;
-    }, 400);
-
-    gain.gain.setValueAtTime(0.3, state.alarmAudioCtx.currentTime);
+    // Loud, clear mountain emergency siren
+    gain.gain.setValueAtTime(0.45, ctx.currentTime);
     osc.connect(gain);
-    gain.connect(state.alarmAudioCtx.destination);
+    gain.connect(ctx.destination);
     osc.start();
 
     state.alarmOscillator = osc;
     state.isAlarmPlaying = true;
     updateAlarmButtonUI();
+
+    // Dual-tone high-low emergency disaster wail (oscillates 1050 Hz <-> 680 Hz)
+    let isHigh = false;
+    state.alarmInterval = setInterval(() => {
+      if (!state.isAlarmPlaying || !state.alarmOscillator || !state.alarmAudioCtx) return;
+      try {
+        const now = state.alarmAudioCtx.currentTime;
+        isHigh = !isHigh;
+        const target = isHigh ? 1060 : 660;
+        state.alarmOscillator.frequency.cancelScheduledValues(now);
+        state.alarmOscillator.frequency.setValueAtTime(state.alarmOscillator.frequency.value, now);
+        state.alarmOscillator.frequency.linearRampToValueAtTime(target, now + 0.35);
+      } catch (e) {}
+    }, 380);
+
+    // Vocal voice warning alert
+    speak("Warning! Emergency disaster siren activated. Evacuate slope line immediately.");
   } catch (err) {
-    console.error('AudioContext error:', err);
+    console.error('AudioContext siren error:', err);
+    speak("Warning! Emergency disaster alert. Move perpendicular to slope flow immediately.");
   }
 }
 
@@ -1921,6 +1958,14 @@ export async function validateAndSaveGeminiKey() {
       state.geminiApiKey = key;
       state.geminiKeyValidated = true;
       localStorage.setItem('raksha_gemini_key', key);
+      
+      // Also persist to server .env
+      fetch('/api/ai/save-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: key })
+      }).catch(() => {});
+
       statusEl.innerHTML = '<span style="color: #4ade80; font-weight: bold;">✅ Google Gemini 1.5 Flash Connected & Verified!</span>';
       setTimeout(() => {
         document.getElementById('gemini-key-modal')?.remove();
@@ -2461,6 +2506,310 @@ export function setLanguage(langCode) {
   renderActiveTab();
 }
 
+// ==========================================
+// 9. ARUN_SAFE-AI (Cute Red+White Floating Assistant)
+// ==========================================
+
+export function getArunFellowSVG(size = 46) {
+  return `
+    <svg viewBox="0 0 100 100" width="${size}" height="${size}" style="display: block; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));">
+      <!-- Red Rescue Helmet / Body -->
+      <circle cx="50" cy="50" r="46" fill="#ef4444" stroke="#ffffff" stroke-width="3.5"/>
+      <!-- Helmet White Mountain Shield / Cross -->
+      <rect x="46" y="9" width="8" height="15" rx="2" fill="#ffffff"/>
+      <rect x="42.5" y="12.5" width="15" height="8" rx="2" fill="#ffffff"/>
+      <!-- Cute White Face Screen -->
+      <ellipse cx="50" cy="54" rx="34" ry="28" fill="#ffffff"/>
+      <!-- Pink Blush Cheeks -->
+      <ellipse cx="30" cy="62" rx="5" ry="3" fill="#fca5a5" opacity="0.85"/>
+      <ellipse cx="70" cy="62" rx="5" ry="3" fill="#fca5a5" opacity="0.85"/>
+      <!-- Kawaii Expressive Blinking Eyes -->
+      <g class="arun-eyes">
+        <ellipse cx="36" cy="52" rx="5" ry="7" fill="#0f172a"/>
+        <circle cx="38" cy="49" r="2.5" fill="#ffffff"/>
+        <ellipse cx="64" cy="52" rx="5" ry="7" fill="#0f172a"/>
+        <circle cx="66" cy="49" r="2.5" fill="#ffffff"/>
+      </g>
+      <!-- Happy Rescuer Smile -->
+      <path d="M 43 62 Q 50 69 57 62" stroke="#0f172a" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+      <!-- Rescuer Headset & Radio Antenna -->
+      <rect x="9" y="44" width="7" height="16" rx="3" fill="#ffffff" stroke="#ef4444" stroke-width="1.5"/>
+      <rect x="84" y="44" width="7" height="16" rx="3" fill="#ffffff" stroke="#ef4444" stroke-width="1.5"/>
+      <path d="M 84 55 Q 76 72 60 72" stroke="#ef4444" stroke-width="2.2" fill="none"/>
+      <circle cx="58" cy="72" r="3.2" fill="#ffffff" stroke="#ef4444" stroke-width="1.5"/>
+    </svg>
+  `;
+}
+
+export function initArunSafeWidget() {
+  const existing = document.getElementById('arun-safe-launcher');
+  if (existing) existing.remove();
+
+  const launcher = document.createElement('div');
+  launcher.id = 'arun-safe-launcher';
+  launcher.className = 'arun-launcher';
+  launcher.onclick = () => toggleArunPopup();
+  launcher.innerHTML = `
+    <div class="arun-bubble-hint">
+      <span>🎒</span> <strong>arun_safe-ai</strong>
+    </div>
+    <div class="arun-launcher-btn" title="Chat with arun_safe-ai">
+      ${getArunFellowSVG(46)}
+      <div class="arun-launcher-badge"></div>
+    </div>
+  `;
+  document.body.appendChild(launcher);
+}
+
+export function toggleArunPopup(force) {
+  state.isArunPopupOpen = typeof force === 'boolean' ? force : !state.isArunPopupOpen;
+  const existingCard = document.getElementById('arun-safe-ai-popup');
+
+  if (!state.isArunPopupOpen) {
+    if (existingCard) existingCard.remove();
+    return;
+  }
+
+  if (existingCard) existingCard.remove();
+
+  const isCloud = Boolean(state.geminiApiKey);
+
+  const card = document.createElement('div');
+  card.id = 'arun-safe-ai-popup';
+  card.className = 'arun-popup-card';
+  card.innerHTML = `
+    <!-- Top Header -->
+    <div style="padding: 12px 14px; background: linear-gradient(135deg, #1e293b, #0f172a); border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="flex-shrink: 0;">
+          ${getArunFellowSVG(38)}
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <h3 style="margin: 0; font-size: 0.98rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">
+              arun_safe-ai
+            </h3>
+            <span style="font-size: 0.65rem; background: #22c55e; color: #ffffff; padding: 2px 6px; border-radius: 10px; font-weight: 700;">LIVE</span>
+          </div>
+          <div style="font-size: 0.72rem; color: #94a3b8;">
+            ${isCloud ? '✨ Gemini Flash' : '⚡ Mountain AI'} &bull; ${state.userDistrict}
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button onclick="window.raksha.openGeminiKeyModal()" title="API Key" style="background: rgba(30, 41, 59, 0.9); border: 1px solid #475569; color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+          🔑 Key
+        </button>
+        <button onclick="window.raksha.toggleArunPopup(false)" style="background: transparent; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 0 4px; line-height: 1;">
+          &times;
+        </button>
+      </div>
+    </div>
+
+    <!-- Suggestion Chips Carousel -->
+    <div style="padding: 8px 12px; background: rgba(15, 23, 42, 0.8); border-bottom: 1px solid #1e293b; display: flex; gap: 6px; overflow-x: auto;" class="no-scrollbar">
+      <button onclick="window.raksha.submitArunQuery('What is the landslide risk right now in my district?')" style="background: #1e293b; border: 1px solid #334155; color: #f87171; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
+        🏔️ Landslide Risk
+      </button>
+      <button onclick="window.raksha.submitArunQuery('Is Sela Tunnel open and safe to travel?')" style="background: #1e293b; border: 1px solid #334155; color: #38bdf8; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
+        🚗 Sela Tunnel
+      </button>
+      <button onclick="window.raksha.submitArunQuery('How to find drinking water from bamboo?')" style="background: #1e293b; border: 1px solid #334155; color: #4ade80; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
+        🎋 Bamboo Water
+      </button>
+      <button onclick="window.raksha.submitArunQuery('What are the emergency numbers for 12th Bn NDRF and SEOC?')" style="background: #1e293b; border: 1px solid #334155; color: #facc15; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
+        🆘 NDRF Contacts
+      </button>
+    </div>
+
+    <!-- Chat Messages Stream -->
+    <div id="arun-popup-chat-history" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+      ${renderArunChatBubbles()}
+    </div>
+
+    <!-- Bottom Input Bar -->
+    <div style="padding: 10px 12px; background: #0f172a; border-top: 1px solid #334155; display: flex; gap: 6px; align-items: center;">
+      <button id="arun-mic-btn" onclick="window.raksha.toggleArunVoice()" title="Speak voice query" style="width: 38px; height: 38px; border-radius: 50%; background: #1e293b; border: 1px solid #475569; color: #ef4444; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s;">
+        🎙️
+      </button>
+      <input type="text" id="arun-input-box" placeholder="Ask arun_safe-ai anything..."
+             style="flex: 1; padding: 8px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 10px; color: #ffffff; font-size: 0.84rem; outline: none;" />
+      <button onclick="window.raksha.submitArunQuery()" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: #ffffff; border: none; border-radius: 10px; width: 40px; height: 38px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        ➔
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(card);
+
+  const box = document.getElementById('arun-input-box');
+  if (box) {
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitArunQuery();
+    });
+    box.focus();
+  }
+
+  const hist = document.getElementById('arun-popup-chat-history');
+  if (hist) hist.scrollTop = hist.scrollHeight;
+}
+
+function renderArunChatBubbles() {
+  return state.arunChatMessages.map(msg => {
+    const isUser = msg.role === 'user';
+    return `
+      <div style="display: flex; gap: 8px; justify-content: ${isUser ? 'flex-end' : 'flex-start'}; align-items: flex-start;">
+        ${!isUser ? `
+          <div style="flex-shrink: 0; margin-top: 2px;">
+            ${getArunFellowSVG(26)}
+          </div>
+        ` : ''}
+        <div style="max-width: 82%; background: ${isUser ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#1e293b'}; border: 1px solid ${isUser ? '#3b82f6' : '#334155'}; color: #ffffff; border-radius: 12px; padding: 9px 12px; font-size: 0.83rem; line-height: 1.45; word-break: break-word;">
+          ${formatMarkdownText(msg.text)}
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.68rem; color: ${isUser ? '#bfdbfe' : '#94a3b8'}; border-top: ${!isUser ? '1px solid rgba(255,255,255,0.1)' : 'none'}; padding-top: ${!isUser ? '4px' : '0'};">
+            <span>${msg.timestamp}</span>
+            ${!isUser ? `
+              <div style="display: flex; gap: 6px;">
+                <button onclick="window.raksha.speak('${msg.text.replace(/'/g, "\\'").replace(/\n/g, ' ')}')" title="Listen" style="background: transparent; border: none; color: #38bdf8; cursor: pointer; font-size: 0.8rem;">
+                  🔊
+                </button>
+                <button onclick="navigator.clipboard.writeText('${msg.text.replace(/'/g, "\\'").replace(/\n/g, ' ')}'); alert('Copied!');" title="Copy" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 0.8rem;">
+                  📋
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+export async function submitArunQuery(overrideText) {
+  const box = document.getElementById('arun-input-box');
+  const query = (overrideText || (box ? box.value : '')).trim();
+  if (!query) return;
+
+  if (box) box.value = '';
+
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  state.arunChatMessages.push({
+    role: 'user',
+    text: query,
+    timestamp: timeStr
+  });
+
+  const hist = document.getElementById('arun-popup-chat-history');
+  if (hist) {
+    hist.innerHTML = renderArunChatBubbles();
+    hist.scrollTop = hist.scrollHeight;
+  }
+
+  // Add typing indicator
+  const typingId = 'arun-type-' + Date.now();
+  if (hist) {
+    hist.innerHTML += `
+      <div id="${typingId}" style="display: flex; gap: 8px; align-items: center; color: #94a3b8; font-size: 0.78rem;">
+        ${getArunFellowSVG(22)}
+        <span>arun_safe-ai is thinking...</span>
+      </div>
+    `;
+    hist.scrollTop = hist.scrollHeight;
+  }
+
+  try {
+    const res = await fetch('/api/ai/copilot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        userDistrict: state.userDistrict,
+        persona: state.currentPersona,
+        language: state.currentLanguage,
+        apiKey: state.geminiApiKey
+      })
+    });
+    const data = await res.json();
+    const reply = data.response || 'Stay alert and avoid steep slope bases.';
+
+    document.getElementById(typingId)?.remove();
+
+    state.arunChatMessages.push({
+      role: 'ai',
+      text: reply,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+
+    if (hist) {
+      hist.innerHTML = renderArunChatBubbles();
+      hist.scrollTop = hist.scrollHeight;
+    }
+  } catch (err) {
+    document.getElementById(typingId)?.remove();
+    state.arunChatMessages.push({
+      role: 'ai',
+      text: '⚠️ **Emergency Fallback**: Move perpendicular to the slope flow. Climb at least 15m above river waterbeds. Dial **1070** for State Disaster Control Room.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    if (hist) {
+      hist.innerHTML = renderArunChatBubbles();
+      hist.scrollTop = hist.scrollHeight;
+    }
+  }
+}
+
+export function toggleArunVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('Voice input is not supported in this browser. Please type your query in the box.');
+    return;
+  }
+
+  const btn = document.getElementById('arun-mic-btn');
+  try {
+    const rec = new SpeechRecognition();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = state.currentLanguage === 'hi' ? 'hi-IN' : 'en-IN';
+
+    rec.onstart = () => {
+      if (btn) {
+        btn.style.backgroundColor = '#ef4444';
+        btn.style.color = '#ffffff';
+        btn.innerHTML = '🛑';
+      }
+    };
+
+    rec.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      const box = document.getElementById('arun-input-box');
+      if (box) box.value = transcript;
+      submitArunQuery(transcript);
+    };
+
+    rec.onerror = () => {
+      if (btn) {
+        btn.style.backgroundColor = '#1e293b';
+        btn.style.color = '#ef4444';
+        btn.innerHTML = '🎙️';
+      }
+    };
+
+    rec.onend = () => {
+      if (btn) {
+        btn.style.backgroundColor = '#1e293b';
+        btn.style.color = '#ef4444';
+        btn.innerHTML = '🎙️';
+      }
+    };
+
+    rec.start();
+  } catch (e) {
+    console.error('Arun voice rec error:', e);
+  }
+}
+
 // Global Export to Window
 window.raksha = {
   state,
@@ -2510,13 +2859,21 @@ window.raksha = {
   filterManualItems,
   setManualCategory,
   toggleManualCard,
-  speakManualSection
+  speakManualSection,
+  // arun_safe-ai exports
+  initArunSafeWidget,
+  toggleArunPopup,
+  submitArunQuery,
+  toggleArunVoice,
+  getArunFellowSVG,
+  speak
 };
 
 // Application Bootloader
 window.addEventListener('DOMContentLoaded', () => {
   initGeolocation();
   renderActiveTab();
+  initArunSafeWidget();
   fetchLiveTelemetry();
   setInterval(fetchLiveTelemetry, 30000); // Real-time poll every 30 seconds
 
