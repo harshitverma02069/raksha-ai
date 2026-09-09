@@ -801,28 +801,35 @@ async function handleAPI(req, res, pathname, parsedUrl) {
     }
 
     try {
-      const pingRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${keyToTest}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Ping test. Reply with: OK' }] }]
-        })
-      });
+      // Query Google ModelService to validate key and retrieve authorized models
+      const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keyToTest}`);
+      const modelsData = await modelsRes.json().catch(() => ({}));
 
-      if (pingRes.ok) {
-        const pingData = await pingRes.json();
-        const reply = pingData.candidates?.[0]?.content?.parts?.[0]?.text || 'OK';
+      if (modelsRes.ok && Array.isArray(modelsData.models)) {
+        const supported = modelsData.models
+          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => m.name.replace('models/', ''));
+
+        const chosenModel = supported.find(m => m.includes('2.0-flash'))
+          || supported.find(m => m.includes('1.5-flash-latest'))
+          || supported.find(m => m.includes('1.5-flash'))
+          || supported.find(m => m.includes('1.5-pro'))
+          || supported.find(m => m.includes('gemini-pro'))
+          || supported[0]
+          || 'gemini-1.5-flash-latest';
+
+        process.env.GEMINI_MODEL = chosenModel;
+
         res.writeHead(200);
         res.end(JSON.stringify({
           valid: true,
-          model: 'gemini-1.5-flash',
-          message: 'Google Gemini 1.5 Flash API Key verified and active!',
-          pingReply: reply.trim()
+          model: chosenModel,
+          availableModels: supported.slice(0, 5),
+          message: `Google Gemini connected successfully! Active model: ${chosenModel}`
         }));
         return;
       } else {
-        const errData = await pingRes.json().catch(() => ({}));
-        const errMsg = errData.error?.message || `Google API returned status ${pingRes.status}`;
+        const errMsg = modelsData.error?.message || `Google API returned status ${modelsRes.status}`;
         res.writeHead(400);
         res.end(JSON.stringify({ valid: false, error: errMsg }));
         return;
@@ -889,14 +896,26 @@ async function handleAPI(req, res, pathname, parsedUrl) {
 
     // Check if user supplied a Gemini API key (client-side or server .env)
     if (activeKey) {
-      try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `You are RAKSHA AI (रक्षा), the elite mountain disaster survival and geographical intelligence copilot powered by Google Gemini, designed specifically for Arunachal Pradesh, India.
+      const candidateModels = [
+        process.env.GEMINI_MODEL,
+        'gemini-1.5-flash-latest',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro'
+      ].filter(Boolean);
+
+      const uniqueModels = [...new Set(candidateModels)];
+
+      for (const mod of uniqueModels) {
+        try {
+          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${activeKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `You are RAKSHA AI (रक्षा), the elite mountain disaster survival and geographical intelligence copilot powered by Google Gemini, designed specifically for Arunachal Pradesh, India.
 
 User Persona: ${persona.toUpperCase()}
 - RESIDENT: Living in Arunachal. Needs tactical slope failure (FoS < 1.0) survival, 90° lateral sprint advice, mountain bamboo drinking water tapping (Dendrocalamus hamiltonii), wild edible plants, and emergency lifelines.
@@ -908,27 +927,29 @@ Language: Respond fluently in ${language} (if Hindi or tribal dialect, use authe
 Format your response with rich Markdown: bold titles, bullet points, clean structure, and emergency phone numbers (State EOC 1070, 12th Bn NDRF 0360-2277107, Ambulance 108).
 User Query: "${query}"
 Deliver calm, authoritative, life-saving advice.`
+                }]
               }]
-            }]
-          })
-        });
+            })
+          });
 
-        if (geminiRes.ok) {
-          const gData = await geminiRes.json();
-          const reply = gData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (reply) {
-            res.writeHead(200);
-            res.end(JSON.stringify({
-              success: true,
-              source: 'gemini-cloud',
-              model: 'gemini-1.5-flash',
-              response: reply
-            }));
-            return;
+          if (geminiRes.ok) {
+            const gData = await geminiRes.json();
+            const reply = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (reply) {
+              process.env.GEMINI_MODEL = mod;
+              res.writeHead(200);
+              res.end(JSON.stringify({
+                success: true,
+                source: 'gemini-cloud',
+                model: mod,
+                response: reply
+              }));
+              return;
+            }
           }
+        } catch (geminiErr) {
+          // Continue to next model candidate
         }
-      } catch (geminiErr) {
-        console.warn('[RAKSHA AI] Gemini fetch fallback to local engine:', geminiErr.message);
       }
     }
 

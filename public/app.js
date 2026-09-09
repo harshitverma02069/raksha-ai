@@ -1969,25 +1969,26 @@ export async function validateAndSaveGeminiKey() {
     errorMsg = err.message || '';
   }
 
-  // 2. Direct browser fallback if server returned network error or fetch failed
+  // 2. Direct browser fallback using Google ModelService (never hardcodes model name)
   if (!isValid && key.startsWith('AIza')) {
     try {
-      const directRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Ping test' }] }]
-        })
-      });
-      if (directRes.ok) {
+      const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+      const modelsData = await modelsRes.json().catch(() => ({}));
+      if (modelsRes.ok && Array.isArray(modelsData.models)) {
         isValid = true;
         errorMsg = '';
-      } else {
-        const directData = await directRes.json().catch(() => ({}));
-        errorMsg = directData.error?.message || `Google returned status ${directRes.status}`;
+        const supported = modelsData.models
+          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => m.name.replace('models/', ''));
+        state.geminiModel = supported.find(m => m.includes('2.0-flash'))
+          || supported.find(m => m.includes('1.5-flash-latest'))
+          || supported.find(m => m.includes('1.5-flash'))
+          || supported[0]
+          || 'gemini-1.5-flash-latest';
+      } else if (modelsData.error?.message) {
+        errorMsg = modelsData.error.message;
       }
     } catch (browserErr) {
-      // If client also has local network restriction, accept standard AIza format
       if (key.length >= 25) {
         isValid = true;
         errorMsg = '';
