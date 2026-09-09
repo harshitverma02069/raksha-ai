@@ -2507,36 +2507,44 @@ export function setLanguage(langCode) {
 }
 
 // ==========================================
-// 9. ARUN_SAFE-AI (Cute Red+White Floating Assistant)
+// 9. ARUN_SAFE-AI (Cute Red+Black Fellow Free-Floating Assistant)
 // ==========================================
 
 export function getArunFellowSVG(size = 46) {
   return `
-    <svg viewBox="0 0 100 100" width="${size}" height="${size}" style="display: block; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));">
-      <!-- Red Rescue Helmet / Body -->
-      <circle cx="50" cy="50" r="46" fill="#ef4444" stroke="#ffffff" stroke-width="3.5"/>
-      <!-- Helmet White Mountain Shield / Cross -->
-      <rect x="46" y="9" width="8" height="15" rx="2" fill="#ffffff"/>
-      <rect x="42.5" y="12.5" width="15" height="8" rx="2" fill="#ffffff"/>
-      <!-- Cute White Face Screen -->
-      <ellipse cx="50" cy="54" rx="34" ry="28" fill="#ffffff"/>
-      <!-- Pink Blush Cheeks -->
-      <ellipse cx="30" cy="62" rx="5" ry="3" fill="#fca5a5" opacity="0.85"/>
-      <ellipse cx="70" cy="62" rx="5" ry="3" fill="#fca5a5" opacity="0.85"/>
-      <!-- Kawaii Expressive Blinking Eyes -->
+    <svg viewBox="0 0 100 100" width="${size}" height="${size}" style="display: block; filter: drop-shadow(0 4px 10px rgba(220, 38, 38, 0.65));">
+      <defs>
+        <linearGradient id="arunRedGrad-${size}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ef4444" />
+          <stop offset="100%" stop-color="#991b1b" />
+        </linearGradient>
+      </defs>
+      <!-- Outer Obsidian Black Armor Ring -->
+      <circle cx="50" cy="50" r="47" fill="#090d16" stroke="#dc2626" stroke-width="3"/>
+      <!-- Vibrant Red Rescuer Helmet & Body Shell -->
+      <circle cx="50" cy="50" r="43" fill="url(#arunRedGrad-${size})" stroke="#18181b" stroke-width="2"/>
+      <!-- Helmet Red/Black Crest Top -->
+      <rect x="45" y="8" width="10" height="15" rx="3" fill="#090d16" stroke="#ef4444" stroke-width="1.5"/>
+      <rect x="42" y="12" width="16" height="7" rx="2" fill="#ef4444"/>
+      <!-- Glossy Black Visor Face Screen -->
+      <ellipse cx="50" cy="54" rx="33" ry="27" fill="#090d16" stroke="#27272a" stroke-width="2"/>
+      <!-- Cute Blushing Cheeks (Crimson glow) -->
+      <ellipse cx="30" cy="63" rx="5" ry="3" fill="#ef4444" opacity="0.9"/>
+      <ellipse cx="70" cy="63" rx="5" ry="3" fill="#ef4444" opacity="0.9"/>
+      <!-- Kawaii Blinking Glowing Cyan Eyes -->
       <g class="arun-eyes">
-        <ellipse cx="36" cy="52" rx="5" ry="7" fill="#0f172a"/>
-        <circle cx="38" cy="49" r="2.5" fill="#ffffff"/>
-        <ellipse cx="64" cy="52" rx="5" ry="7" fill="#0f172a"/>
-        <circle cx="66" cy="49" r="2.5" fill="#ffffff"/>
+        <ellipse cx="36" cy="51" rx="5.5" ry="7.5" fill="#38bdf8"/>
+        <circle cx="38" cy="48" r="2.5" fill="#ffffff"/>
+        <ellipse cx="64" cy="51" rx="5.5" ry="7.5" fill="#38bdf8"/>
+        <circle cx="66" cy="48" r="2.5" fill="#ffffff"/>
       </g>
-      <!-- Happy Rescuer Smile -->
-      <path d="M 43 62 Q 50 69 57 62" stroke="#0f172a" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-      <!-- Rescuer Headset & Radio Antenna -->
-      <rect x="9" y="44" width="7" height="16" rx="3" fill="#ffffff" stroke="#ef4444" stroke-width="1.5"/>
-      <rect x="84" y="44" width="7" height="16" rx="3" fill="#ffffff" stroke="#ef4444" stroke-width="1.5"/>
-      <path d="M 84 55 Q 76 72 60 72" stroke="#ef4444" stroke-width="2.2" fill="none"/>
-      <circle cx="58" cy="72" r="3.2" fill="#ffffff" stroke="#ef4444" stroke-width="1.5"/>
+      <!-- Cute White Friendly Smile -->
+      <path d="M 43 62 Q 50 69 57 62" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+      <!-- Red+Black Tactical Headset & Radio Mic -->
+      <rect x="7" y="43" width="7" height="17" rx="3" fill="#dc2626" stroke="#090d16" stroke-width="1.5"/>
+      <rect x="86" y="43" width="7" height="17" rx="3" fill="#dc2626" stroke="#090d16" stroke-width="1.5"/>
+      <path d="M 86 55 Q 78 73 61 73" stroke="#ef4444" stroke-width="2.4" fill="none"/>
+      <circle cx="59" cy="73" r="3.5" fill="#090d16" stroke="#ef4444" stroke-width="2"/>
     </svg>
   `;
 }
@@ -2548,16 +2556,62 @@ export function initArunSafeWidget() {
   const launcher = document.createElement('div');
   launcher.id = 'arun-safe-launcher';
   launcher.className = 'arun-launcher';
-  launcher.onclick = () => toggleArunPopup();
   launcher.innerHTML = `
     <div class="arun-bubble-hint">
       <span>🎒</span> <strong>arun_safe-ai</strong>
     </div>
-    <div class="arun-launcher-btn" title="Chat with arun_safe-ai">
+    <div class="arun-launcher-btn" title="Chat with arun_safe-ai (Click or Drag)">
       ${getArunFellowSVG(46)}
       <div class="arun-launcher-badge"></div>
     </div>
   `;
+
+  // Make it freely draggable / floating on screen
+  let isDragging = false;
+  let startX = 0, startY = 0;
+  let initialRight = 18, initialBottom = 72;
+  let dragDist = 0;
+
+  const onPointerDown = (e) => {
+    isDragging = true;
+    dragDist = 0;
+    startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    startY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+  };
+
+  const onPointerMove = (e) => {
+    if (!isDragging) return;
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+    dragDist += Math.abs(dx) + Math.abs(dy);
+
+    if (dragDist > 10) {
+      launcher.style.right = `${Math.max(10, Math.min(window.innerWidth - 70, initialRight - dx))}px`;
+      launcher.style.bottom = `${Math.max(10, Math.min(window.innerHeight - 70, initialBottom - dy))}px`;
+    }
+  };
+
+  const onPointerUp = () => {
+    if (isDragging) {
+      isDragging = false;
+      initialRight = parseInt(launcher.style.right || '18', 10);
+      initialBottom = parseInt(launcher.style.bottom || '72', 10);
+      if (dragDist < 8) {
+        toggleArunPopup();
+      }
+    }
+  };
+
+  launcher.addEventListener('mousedown', onPointerDown);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+
+  launcher.addEventListener('touchstart', onPointerDown, { passive: true });
+  window.addEventListener('touchmove', onPointerMove, { passive: true });
+  window.addEventListener('touchend', onPointerUp);
+
   document.body.appendChild(launcher);
 }
 
@@ -2579,7 +2633,7 @@ export function toggleArunPopup(force) {
   card.className = 'arun-popup-card';
   card.innerHTML = `
     <!-- Top Header -->
-    <div style="padding: 12px 14px; background: linear-gradient(135deg, #1e293b, #0f172a); border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+    <div style="padding: 12px 14px; background: linear-gradient(135deg, #090d16, #18181b); border-bottom: 2px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
       <div style="display: flex; align-items: center; gap: 10px;">
         <div style="flex-shrink: 0;">
           ${getArunFellowSVG(38)}
@@ -2589,16 +2643,16 @@ export function toggleArunPopup(force) {
             <h3 style="margin: 0; font-size: 0.98rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">
               arun_safe-ai
             </h3>
-            <span style="font-size: 0.65rem; background: #22c55e; color: #ffffff; padding: 2px 6px; border-radius: 10px; font-weight: 700;">LIVE</span>
+            <span style="font-size: 0.65rem; background: #ef4444; color: #ffffff; padding: 2px 6px; border-radius: 10px; font-weight: 700;">ACTIVE</span>
           </div>
           <div style="font-size: 0.72rem; color: #94a3b8;">
-            ${isCloud ? '✨ Gemini Flash' : '⚡ Mountain AI'} &bull; ${state.userDistrict}
+            ${isCloud ? '✨ Gemini 1.5 Flash' : '⚡ Local Neural'} &bull; ${state.userDistrict}
           </div>
         </div>
       </div>
 
       <div style="display: flex; align-items: center; gap: 6px;">
-        <button onclick="window.raksha.openGeminiKeyModal()" title="API Key" style="background: rgba(30, 41, 59, 0.9); border: 1px solid #475569; color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+        <button onclick="window.raksha.openGeminiKeyModal()" title="API Key" style="background: #18181b; border: 1px solid #3f3f46; color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: 600;">
           🔑 Key
         </button>
         <button onclick="window.raksha.toggleArunPopup(false)" style="background: transparent; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 0 4px; line-height: 1;">
@@ -2607,35 +2661,41 @@ export function toggleArunPopup(force) {
       </div>
     </div>
 
-    <!-- Suggestion Chips Carousel -->
-    <div style="padding: 8px 12px; background: rgba(15, 23, 42, 0.8); border-bottom: 1px solid #1e293b; display: flex; gap: 6px; overflow-x: auto;" class="no-scrollbar">
-      <button onclick="window.raksha.submitArunQuery('What is the landslide risk right now in my district?')" style="background: #1e293b; border: 1px solid #334155; color: #f87171; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
-        🏔️ Landslide Risk
+    <!-- Universal Actions Bar (Can do ANYTHING inside the AI) -->
+    <div style="padding: 8px 10px; background: #090d16; border-bottom: 1px solid #27272a; display: flex; gap: 6px; overflow-x: auto;" class="no-scrollbar">
+      <button onclick="window.raksha.switchTab('escape'); window.raksha.toggleArunPopup(false);" class="arun-quick-btn" title="Open 3D Simulation">
+        🎬 3D Escape Model
       </button>
-      <button onclick="window.raksha.submitArunQuery('Is Sela Tunnel open and safe to travel?')" style="background: #1e293b; border: 1px solid #334155; color: #38bdf8; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
+      <button onclick="window.raksha.toggleEmergencySiren();" class="arun-quick-btn" style="color: #f87171; border-color: #7f1d1d;" title="Sound Emergency Siren">
+        🚨 Sound Siren
+      </button>
+      <button onclick="window.raksha.switchTab('dashboard'); window.raksha.runFoSCalculation(); window.raksha.toggleArunPopup(false);" class="arun-quick-btn" title="Calculate FoS slope failure">
+        ⛰️ FoS Slope Risk
+      </button>
+      <button onclick="window.raksha.submitArunQuery('Is Sela Tunnel open and safe to travel?')" class="arun-quick-btn" title="Check Sela Tunnel">
         🚗 Sela Tunnel
       </button>
-      <button onclick="window.raksha.submitArunQuery('How to find drinking water from bamboo?')" style="background: #1e293b; border: 1px solid #334155; color: #4ade80; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
+      <button onclick="window.raksha.submitArunQuery('How to find drinking water from mountain bamboo?')" class="arun-quick-btn" title="Bamboo Water">
         🎋 Bamboo Water
       </button>
-      <button onclick="window.raksha.submitArunQuery('What are the emergency numbers for 12th Bn NDRF and SEOC?')" style="background: #1e293b; border: 1px solid #334155; color: #facc15; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
-        🆘 NDRF Contacts
+      <button onclick="window.raksha.switchTab('sos'); window.raksha.toggleArunPopup(false);" class="arun-quick-btn" style="color: #ef4444;" title="Emergency SOS">
+        🆘 SOS Beacon
       </button>
     </div>
 
     <!-- Chat Messages Stream -->
-    <div id="arun-popup-chat-history" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+    <div id="arun-popup-chat-history" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #090d16;">
       ${renderArunChatBubbles()}
     </div>
 
     <!-- Bottom Input Bar -->
-    <div style="padding: 10px 12px; background: #0f172a; border-top: 1px solid #334155; display: flex; gap: 6px; align-items: center;">
-      <button id="arun-mic-btn" onclick="window.raksha.toggleArunVoice()" title="Speak voice query" style="width: 38px; height: 38px; border-radius: 50%; background: #1e293b; border: 1px solid #475569; color: #ef4444; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s;">
+    <div style="padding: 10px 12px; background: #0f172a; border-top: 1px solid #27272a; display: flex; gap: 6px; align-items: center;">
+      <button id="arun-mic-btn" onclick="window.raksha.toggleArunVoice()" title="Speak voice query" style="width: 38px; height: 38px; border-radius: 50%; background: #18181b; border: 1px solid #ef4444; color: #ef4444; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s;">
         🎙️
       </button>
       <input type="text" id="arun-input-box" placeholder="Ask arun_safe-ai anything..."
-             style="flex: 1; padding: 8px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 10px; color: #ffffff; font-size: 0.84rem; outline: none;" />
-      <button onclick="window.raksha.submitArunQuery()" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: #ffffff; border: none; border-radius: 10px; width: 40px; height: 38px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+             style="flex: 1; padding: 8px 12px; background: #18181b; border: 1px solid #27272a; border-radius: 10px; color: #ffffff; font-size: 0.84rem; outline: none;" />
+      <button onclick="window.raksha.submitArunQuery()" style="background: linear-gradient(135deg, #ef4444, #991b1b); color: #ffffff; border: none; border-radius: 10px; width: 40px; height: 38px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
         ➔
       </button>
     </div>

@@ -422,27 +422,31 @@ body, html {
 }
 
 /* =================================================================
-   ARUN_SAFE-AI (Cute Red+White Fellow Floating Assistant) STYLES
+   ARUN_SAFE-AI (Cute Red+Black Fellow Free-Floating Assistant) STYLES
    ================================================================= */
 .arun-launcher {
   position: fixed;
-  bottom: 70px;
+  bottom: 72px;
   right: 18px;
   z-index: 1250;
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
+  touch-action: none;
+}
+.arun-launcher:active {
+  cursor: grabbing;
 }
 
 .arun-launcher-btn {
-  width: 58px;
-  height: 58px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-  border: 3px solid #ffffff;
-  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.55), 0 0 14px rgba(255, 255, 255, 0.4);
+  background: linear-gradient(135deg, #dc2626 0%, #090d16 100%);
+  border: 3px solid #ef4444;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.65), 0 0 18px rgba(9, 13, 22, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -452,8 +456,8 @@ body, html {
 }
 
 .arun-launcher-btn:hover {
-  transform: scale(1.1) rotate(-4deg);
-  box-shadow: 0 12px 30px rgba(239, 68, 68, 0.75), 0 0 20px rgba(255, 255, 255, 0.6);
+  transform: scale(1.12) rotate(-5deg);
+  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.85), 0 0 25px rgba(239, 68, 68, 0.5);
 }
 
 .arun-launcher-badge {
@@ -461,31 +465,31 @@ body, html {
   top: -2px;
   right: -2px;
   background: #22c55e;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  border: 2px solid #ffffff;
+  border: 2px solid #090d16;
   box-shadow: 0 0 8px #22c55e;
 }
 
 .arun-bubble-hint {
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid #ef4444;
+  background: #090d16;
+  border: 1.5px solid #ef4444;
   color: #ffffff;
-  padding: 5px 11px;
+  padding: 5px 12px;
   border-radius: 20px;
   font-size: 0.76rem;
-  font-weight: 700;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   white-space: nowrap;
 }
 
 @keyframes arun-float {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
+  50% { transform: translateY(-7px); }
 }
 
 @keyframes arun-blink {
@@ -495,27 +499,48 @@ body, html {
 
 .arun-eyes {
   transform-origin: center;
-  animation: arun-blink 4s infinite;
+  animation: arun-blink 3.8s infinite;
 }
 
 .arun-popup-card {
   position: fixed;
-  bottom: 75px;
+  bottom: 76px;
   right: 18px;
-  width: 380px;
+  width: 385px;
   max-width: calc(100vw - 32px);
-  height: 520px;
+  height: 535px;
   max-height: calc(100vh - 95px);
-  background: rgba(15, 23, 42, 0.96);
+  background: rgba(9, 13, 22, 0.97);
   border: 2px solid #ef4444;
-  border-radius: 18px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(239, 68, 68, 0.35);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(239, 68, 68, 0.35);
   backdrop-filter: blur(16px);
   z-index: 1300;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   animation: arun-slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.arun-quick-btn {
+  background: #18181b;
+  border: 1px solid #27272a;
+  color: #e4e4e7;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.73rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.arun-quick-btn:hover {
+  background: #27272a;
+  border-color: #ef4444;
+  color: #ffffff;
 }
 
 @keyframes arun-slide-up {
