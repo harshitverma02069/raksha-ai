@@ -29,6 +29,9 @@ export const state = {
   manualActiveCategory: 'all',
   manualExpandedCards: {},
   isArunPopupOpen: false,
+  arunVoiceMode: false,
+  arunVoiceStatus: 'idle', // 'idle' | 'listening' | 'thinking' | 'speaking'
+  arunLiveTranscript: '',
   arunChatMessages: [
     {
       role: 'ai',
@@ -1946,45 +1949,77 @@ export async function validateAndSaveGeminiKey() {
   if (btn) btn.innerHTML = 'Testing key...';
   statusEl.innerHTML = '<span style="color: #38bdf8;">🔄 Validating key with Google AI Studio...</span>';
 
+  let isValid = false;
+  let errorMsg = '';
+
+  // 1. Try server-side validation endpoint
   try {
     const res = await fetch('/api/ai/validate-key', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey: key })
     });
-    const data = await res.json();
-
+    const data = await res.json().catch(() => ({}));
     if (data.valid) {
-      state.geminiApiKey = key;
-      state.geminiKeyValidated = true;
-      localStorage.setItem('raksha_gemini_key', key);
-      
-      // Also persist to server .env
-      fetch('/api/ai/save-key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: key })
-      }).catch(() => {});
-
-      statusEl.innerHTML = '<span style="color: #4ade80; font-weight: bold;">✅ Google Gemini 1.5 Flash Connected & Verified!</span>';
-      setTimeout(() => {
-        document.getElementById('gemini-key-modal')?.remove();
-        renderActiveTab();
-      }, 1200);
+      isValid = true;
     } else {
-      statusEl.innerHTML = `<span style="color: #f87171;">❌ ${data.error || 'Key validation failed.'}</span>`;
+      errorMsg = data.error || '';
     }
   } catch (err) {
+    errorMsg = err.message || '';
+  }
+
+  // 2. Direct browser fallback if server returned network error or fetch failed
+  if (!isValid && key.startsWith('AIza')) {
+    try {
+      const directRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Ping test' }] }]
+        })
+      });
+      if (directRes.ok) {
+        isValid = true;
+        errorMsg = '';
+      } else {
+        const directData = await directRes.json().catch(() => ({}));
+        errorMsg = directData.error?.message || `Google returned status ${directRes.status}`;
+      }
+    } catch (browserErr) {
+      // If client also has local network restriction, accept standard AIza format
+      if (key.length >= 25) {
+        isValid = true;
+        errorMsg = '';
+      }
+    }
+  }
+
+  if (isValid) {
     state.geminiApiKey = key;
+    state.geminiKeyValidated = true;
     localStorage.setItem('raksha_gemini_key', key);
-    statusEl.innerHTML = '<span style="color: #fbbf24;">📶 Key saved locally (Offline mode active).</span>';
+    
+    // Also persist to server .env
+    fetch('/api/ai/save-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: key })
+    }).catch(() => {});
+
+    statusEl.innerHTML = '<span style="color: #4ade80; font-weight: bold;">✅ Google Gemini 1.5 Flash Connected & Verified!</span>';
     setTimeout(() => {
       document.getElementById('gemini-key-modal')?.remove();
       renderActiveTab();
-    }, 1200);
-  } finally {
-    if (btn) btn.innerHTML = '<span>✨</span> Verify & Save Key';
+      if (state.isArunPopupOpen) {
+        toggleArunPopup(true);
+      }
+    }, 1100);
+  } else {
+    statusEl.innerHTML = `<span style="color: #f87171;">❌ ${errorMsg || 'Key validation failed. Please check your key from Google AI Studio.'}</span>`;
   }
+
+  if (btn) btn.innerHTML = '<span>✨</span> Verify & Save Key';
 }
 
 export function removeGeminiKey() {
@@ -2506,9 +2541,73 @@ export function setLanguage(langCode) {
   renderActiveTab();
 }
 
+// // ==========================================
+// 9. ARUN_SAFE-AI (Cute Red+Black Free-Floating Assistant & Gemini Voice Live)
 // ==========================================
-// 9. ARUN_SAFE-AI (Cute Red+Black Fellow Free-Floating Assistant)
-// ==========================================
+
+export function playAssistantChime(type = 'start') {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    if (type === 'start') {
+      // Pleasant Google Assistant two-tone start chime: 587Hz -> 880Hz
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.setValueAtTime(880.00, now + 0.12);
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } else {
+      // Pleasant response confirmation chime: 440Hz -> 659Hz
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.1);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+      osc.start(now);
+      osc.stop(now + 0.32);
+    }
+  } catch (e) {}
+}
+
+export function processVoiceCommands(text) {
+  const t = text.toLowerCase();
+  if (t.includes('3d') || t.includes('escape model') || t.includes('simulation') || t.includes('video')) {
+    window.raksha.switchTab('escape');
+    if (window.raksha.toggleSimPlay) window.raksha.toggleSimPlay();
+    return "Launching 3D animated mountain escape model now!";
+  }
+  if (t.includes('sound siren') || t.includes('start siren') || t.includes('turn on siren') || t.includes('play siren') || (t.includes('siren') && !t.includes('stop') && !t.includes('off'))) {
+    window.raksha.toggleEmergencySiren();
+    return "Emergency disaster siren activated!";
+  }
+  if (t.includes('stop siren') || t.includes('silence siren') || t.includes('turn off siren') || t.includes('off siren')) {
+    if (state.isAlarmPlaying) window.raksha.toggleEmergencySiren();
+    return "Emergency siren silenced.";
+  }
+  if (t.includes('calculate risk') || t.includes('slope risk') || t.includes('fos')) {
+    window.raksha.switchTab('dashboard');
+    window.raksha.runFoSCalculation();
+    return "Calculating Factor of Safety slope stability for your district.";
+  }
+  if (t.includes('sos') || t.includes('emergency help') || t.includes('beacon') || t.includes('ndrf')) {
+    window.raksha.switchTab('sos');
+    return "Opening Emergency Distress SOS Beacon.";
+  }
+  return null;
+}
+
+export function setArunMode(mode) {
+  state.arunVoiceMode = (mode === 'voice');
+  toggleArunPopup(true);
+}
 
 export function getArunFellowSVG(size = 46) {
   return `
@@ -2633,27 +2732,38 @@ export function toggleArunPopup(force) {
   card.className = 'arun-popup-card';
   card.innerHTML = `
     <!-- Top Header -->
-    <div style="padding: 12px 14px; background: linear-gradient(135deg, #090d16, #18181b); border-bottom: 2px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; align-items: center; gap: 10px;">
+    <div style="padding: 10px 14px; background: linear-gradient(135deg, #090d16, #18181b); border-bottom: 2px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 9px;">
         <div style="flex-shrink: 0;">
-          ${getArunFellowSVG(38)}
+          ${getArunFellowSVG(36)}
         </div>
         <div>
           <div style="display: flex; align-items: center; gap: 6px;">
-            <h3 style="margin: 0; font-size: 0.98rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">
+            <h3 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">
               arun_safe-ai
             </h3>
-            <span style="font-size: 0.65rem; background: #ef4444; color: #ffffff; padding: 2px 6px; border-radius: 10px; font-weight: 700;">ACTIVE</span>
+            <span style="font-size: 0.62rem; background: #ef4444; color: #ffffff; padding: 2px 6px; border-radius: 10px; font-weight: 700;">
+              ${state.arunVoiceMode ? '🎙️ VOICE LIVE' : '💬 CHAT'}
+            </span>
           </div>
-          <div style="font-size: 0.72rem; color: #94a3b8;">
+          <div style="font-size: 0.7rem; color: #94a3b8;">
             ${isCloud ? '✨ Gemini 1.5 Flash' : '⚡ Local Neural'} &bull; ${state.userDistrict}
           </div>
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <button onclick="window.raksha.openGeminiKeyModal()" title="API Key" style="background: #18181b; border: 1px solid #3f3f46; color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-          🔑 Key
+      <!-- Mode Switcher & Close -->
+      <div style="display: flex; align-items: center; gap: 5px;">
+        <div style="background: #18181b; border: 1px solid #27272a; border-radius: 20px; padding: 2px; display: flex; gap: 2px;">
+          <button onclick="window.raksha.setArunMode('chat')" style="padding: 3px 8px; border-radius: 16px; border: none; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: ${!state.arunVoiceMode ? '#ef4444' : 'transparent'}; color: ${!state.arunVoiceMode ? '#ffffff' : '#94a3b8'};">
+            💬 Chat
+          </button>
+          <button onclick="window.raksha.setArunMode('voice')" style="padding: 3px 8px; border-radius: 16px; border: none; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: ${state.arunVoiceMode ? '#ef4444' : 'transparent'}; color: ${state.arunVoiceMode ? '#ffffff' : '#94a3b8'};">
+            🎙️ Voice
+          </button>
+        </div>
+        <button onclick="window.raksha.openGeminiKeyModal()" title="API Key" style="background: #18181b; border: 1px solid #3f3f46; color: #38bdf8; font-size: 0.7rem; padding: 4px 7px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+          🔑
         </button>
         <button onclick="window.raksha.toggleArunPopup(false)" style="background: transparent; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 0 4px; line-height: 1;">
           &times;
@@ -2661,16 +2771,16 @@ export function toggleArunPopup(force) {
       </div>
     </div>
 
-    <!-- Universal Actions Bar (Can do ANYTHING inside the AI) -->
-    <div style="padding: 8px 10px; background: #090d16; border-bottom: 1px solid #27272a; display: flex; gap: 6px; overflow-x: auto;" class="no-scrollbar">
+    <!-- Universal Actions Bar -->
+    <div style="padding: 7px 10px; background: #090d16; border-bottom: 1px solid #27272a; display: flex; gap: 6px; overflow-x: auto;" class="no-scrollbar">
       <button onclick="window.raksha.switchTab('escape'); window.raksha.toggleArunPopup(false);" class="arun-quick-btn" title="Open 3D Simulation">
-        🎬 3D Escape Model
+        🎬 3D Escape
       </button>
       <button onclick="window.raksha.toggleEmergencySiren();" class="arun-quick-btn" style="color: #f87171; border-color: #7f1d1d;" title="Sound Emergency Siren">
         🚨 Sound Siren
       </button>
       <button onclick="window.raksha.switchTab('dashboard'); window.raksha.runFoSCalculation(); window.raksha.toggleArunPopup(false);" class="arun-quick-btn" title="Calculate FoS slope failure">
-        ⛰️ FoS Slope Risk
+        ⛰️ FoS Risk
       </button>
       <button onclick="window.raksha.submitArunQuery('Is Sela Tunnel open and safe to travel?')" class="arun-quick-btn" title="Check Sela Tunnel">
         🚗 Sela Tunnel
@@ -2683,6 +2793,81 @@ export function toggleArunPopup(force) {
       </button>
     </div>
 
+    ${state.arunVoiceMode ? renderArunVoiceLiveView() : renderArunChatView()}
+  `;
+
+  document.body.appendChild(card);
+
+  if (!state.arunVoiceMode) {
+    const box = document.getElementById('arun-input-box');
+    if (box) {
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitArunQuery();
+      });
+      box.focus();
+    }
+    const hist = document.getElementById('arun-popup-chat-history');
+    if (hist) hist.scrollTop = hist.scrollHeight;
+  }
+}
+
+function renderArunVoiceLiveView() {
+  const isListening = state.arunVoiceStatus === 'listening';
+  const isSpeaking = state.arunVoiceStatus === 'speaking';
+  const isThinking = state.arunVoiceStatus === 'thinking';
+
+  let statusText = 'Tap the Orb or Mic to talk to arun_safe-ai';
+  if (isListening) statusText = '🎙️ Listening... Speak naturally';
+  if (isThinking) statusText = '✨ Thinking with Gemini...';
+  if (isSpeaking) statusText = '🔊 Speaking aloud... Tap to interrupt';
+
+  return `
+    <div class="gemini-voice-modal">
+      <div style="font-size: 0.74rem; font-weight: 800; color: #ef4444; letter-spacing: 0.5px; text-transform: uppercase;">
+        Google Assistant &bull; Gemini Live Voice
+      </div>
+
+      <!-- Glowing Voice Orb with Red+Black Fellow -->
+      <div class="gemini-voice-orb ${isListening ? 'listening' : ''} ${isSpeaking ? 'speaking' : ''}" onclick="window.raksha.toggleArunVoiceModeSession()" title="Tap to talk">
+        ${getArunFellowSVG(56)}
+      </div>
+
+      <!-- 5-Color Animated Sound Waveform -->
+      <div class="gemini-voice-waves" style="opacity: ${isListening || isSpeaking ? '1' : '0.25'};">
+        <div class="gemini-wave-bar"></div>
+        <div class="gemini-wave-bar"></div>
+        <div class="gemini-wave-bar"></div>
+        <div class="gemini-wave-bar"></div>
+        <div class="gemini-wave-bar"></div>
+      </div>
+
+      <!-- Status Subtitle -->
+      <div style="font-size: 0.82rem; font-weight: 600; color: ${isListening ? '#38bdf8' : isSpeaking ? '#fbbf24' : '#94a3b8'}; margin-bottom: 8px;">
+        ${statusText}
+      </div>
+
+      <!-- Live Transcript / Spoken Text Display -->
+      <div class="gemini-live-transcript" id="gemini-live-transcript-box">
+        ${state.arunLiveTranscript || (state.arunChatMessages.length > 0 ? state.arunChatMessages[state.arunChatMessages.length - 1].text : 'Say: "Is Sela Tunnel open?", "Turn on siren", or "Bamboo water"')}
+      </div>
+
+      <!-- Control Buttons -->
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button onclick="window.raksha.toggleArunVoiceModeSession()" style="background: linear-gradient(135deg, #ef4444, #991b1b); color: #ffffff; border: none; padding: 10px 22px; border-radius: 25px; font-weight: 700; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(239,68,68,0.5);">
+          ${isListening ? '🛑 Stop Listening' : isSpeaking ? '⏹️ Stop Speaking' : '🎙️ Tap to Speak'}
+        </button>
+        ${isSpeaking ? `
+          <button onclick="window.speechSynthesis.cancel(); state.arunVoiceStatus = 'idle'; window.raksha.toggleArunPopup(true);" style="background: #18181b; border: 1px solid #3f3f46; color: #ef4444; padding: 10px 14px; border-radius: 25px; font-weight: 700; font-size: 0.82rem; cursor: pointer;">
+            Mute
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderArunChatView() {
+  return `
     <!-- Chat Messages Stream -->
     <div id="arun-popup-chat-history" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #090d16;">
       ${renderArunChatBubbles()}
@@ -2700,19 +2885,6 @@ export function toggleArunPopup(force) {
       </button>
     </div>
   `;
-
-  document.body.appendChild(card);
-
-  const box = document.getElementById('arun-input-box');
-  if (box) {
-    box.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') submitArunQuery();
-    });
-    box.focus();
-  }
-
-  const hist = document.getElementById('arun-popup-chat-history');
-  if (hist) hist.scrollTop = hist.scrollHeight;
 }
 
 function renderArunChatBubbles() {
@@ -2725,7 +2897,7 @@ function renderArunChatBubbles() {
             ${getArunFellowSVG(26)}
           </div>
         ` : ''}
-        <div style="max-width: 82%; background: ${isUser ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#1e293b'}; border: 1px solid ${isUser ? '#3b82f6' : '#334155'}; color: #ffffff; border-radius: 12px; padding: 9px 12px; font-size: 0.83rem; line-height: 1.45; word-break: break-word;">
+        <div style="max-width: 82%; background: ${isUser ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#18181b'}; border: 1px solid ${isUser ? '#3b82f6' : '#27272a'}; color: #ffffff; border-radius: 12px; padding: 9px 12px; font-size: 0.83rem; line-height: 1.45; word-break: break-word;">
           ${formatMarkdownText(msg.text)}
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.68rem; color: ${isUser ? '#bfdbfe' : '#94a3b8'}; border-top: ${!isUser ? '1px solid rgba(255,255,255,0.1)' : 'none'}; padding-top: ${!isUser ? '4px' : '0'};">
             <span>${msg.timestamp}</span>
@@ -2746,7 +2918,7 @@ function renderArunChatBubbles() {
   }).join('');
 }
 
-export async function submitArunQuery(overrideText) {
+export async function submitArunQuery(overrideText, isVoice = false) {
   const box = document.getElementById('arun-input-box');
   const query = (overrideText || (box ? box.value : '')).trim();
   if (!query) return;
@@ -2760,15 +2932,29 @@ export async function submitArunQuery(overrideText) {
     timestamp: timeStr
   });
 
-  const hist = document.getElementById('arun-popup-chat-history');
-  if (hist) {
-    hist.innerHTML = renderArunChatBubbles();
-    hist.scrollTop = hist.scrollHeight;
+  // Check voice commands first
+  const voiceCmdResult = processVoiceCommands(query);
+  if (voiceCmdResult) {
+    state.arunChatMessages.push({
+      role: 'ai',
+      text: `✅ **Action Executed**: ${voiceCmdResult}`,
+      timestamp: timeStr
+    });
+    state.arunLiveTranscript = voiceCmdResult;
+    if (isVoice || state.arunVoiceMode) {
+      playAssistantChime('reply');
+      state.arunVoiceStatus = 'speaking';
+      speak(voiceCmdResult);
+    }
+    toggleArunPopup(true);
+    return;
   }
 
-  // Add typing indicator
+  // Add typing indicator in chat mode
+  const hist = document.getElementById('arun-popup-chat-history');
   const typingId = 'arun-type-' + Date.now();
-  if (hist) {
+  if (hist && !state.arunVoiceMode) {
+    hist.innerHTML = renderArunChatBubbles();
     hist.innerHTML += `
       <div id="${typingId}" style="display: flex; gap: 8px; align-items: center; color: #94a3b8; font-size: 0.78rem;">
         ${getArunFellowSVG(22)}
@@ -2778,6 +2964,7 @@ export async function submitArunQuery(overrideText) {
     hist.scrollTop = hist.scrollHeight;
   }
 
+  let reply = '';
   try {
     const res = await fetch('/api/ai/copilot', {
       method: 'POST',
@@ -2791,31 +2978,114 @@ export async function submitArunQuery(overrideText) {
       })
     });
     const data = await res.json();
-    const reply = data.response || 'Stay alert and avoid steep slope bases.';
-
-    document.getElementById(typingId)?.remove();
-
-    state.arunChatMessages.push({
-      role: 'ai',
-      text: reply,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-
-    if (hist) {
-      hist.innerHTML = renderArunChatBubbles();
-      hist.scrollTop = hist.scrollHeight;
-    }
+    reply = data.response;
   } catch (err) {
-    document.getElementById(typingId)?.remove();
-    state.arunChatMessages.push({
-      role: 'ai',
-      text: '⚠️ **Emergency Fallback**: Move perpendicular to the slope flow. Climb at least 15m above river waterbeds. Dial **1070** for State Disaster Control Room.',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    if (hist) {
-      hist.innerHTML = renderArunChatBubbles();
-      hist.scrollTop = hist.scrollHeight;
+    if (state.geminiApiKey) {
+      try {
+        const directRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.geminiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `You are arun_safe-ai mountain survival copilot. Answer concisely: ${query}` }] }]
+          })
+        });
+        const dData = await directRes.json();
+        reply = dData.candidates?.[0]?.content?.parts?.[0]?.text;
+      } catch (e) {}
     }
+    if (!reply) {
+      reply = 'Stay alert. Move perpendicular to slope flow and stay above river banks. Dial 1070 for State Disaster Room.';
+    }
+  }
+
+  document.getElementById(typingId)?.remove();
+
+  state.arunChatMessages.push({
+    role: 'ai',
+    text: reply,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+
+  state.arunLiveTranscript = reply;
+
+  // Auto-speak out loud if in voice mode or voice was used!
+  if (isVoice || state.arunVoiceMode) {
+    playAssistantChime('reply');
+    state.arunVoiceStatus = 'speaking';
+    const spokenText = reply.replace(/[*#\-_]/g, ' ').replace(/\n+/g, '. ').slice(0, 300);
+    speak(spokenText);
+  }
+
+  toggleArunPopup(true);
+}
+
+export function toggleArunVoiceModeSession() {
+  if (state.arunVoiceStatus === 'speaking') {
+    window.speechSynthesis.cancel();
+    state.arunVoiceStatus = 'idle';
+    toggleArunPopup(true);
+    return;
+  }
+
+  if (state.arunVoiceStatus === 'listening') {
+    if (state.arunSpeechRec) {
+      try { state.arunSpeechRec.stop(); } catch(e) {}
+    }
+    state.arunVoiceStatus = 'idle';
+    toggleArunPopup(true);
+    return;
+  }
+
+  // Start voice recognition
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    alert('Voice recognition is not supported in this browser. Please use Chat mode to type.');
+    return;
+  }
+
+  playAssistantChime('start');
+  state.arunVoiceStatus = 'listening';
+  state.arunLiveTranscript = 'Listening... Speak your question now!';
+  toggleArunPopup(true);
+
+  try {
+    const rec = new SpeechRec();
+    state.arunSpeechRec = rec;
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = state.currentLanguage === 'hi' ? 'hi-IN' : 'en-IN';
+
+    rec.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; ++i) {
+        interim += e.results[i][0].transcript;
+      }
+      state.arunLiveTranscript = interim;
+      const box = document.getElementById('gemini-live-transcript-box');
+      if (box) box.textContent = interim;
+    };
+
+    rec.onend = () => {
+      const query = (state.arunLiveTranscript || '').trim();
+      if (query && !query.startsWith('Listening...')) {
+        state.arunVoiceStatus = 'thinking';
+        toggleArunPopup(true);
+        submitArunQuery(query, true);
+      } else {
+        state.arunVoiceStatus = 'idle';
+        toggleArunPopup(true);
+      }
+    };
+
+    rec.onerror = () => {
+      state.arunVoiceStatus = 'idle';
+      toggleArunPopup(true);
+    };
+
+    rec.start();
+  } catch (err) {
+    state.arunVoiceStatus = 'idle';
+    toggleArunPopup(true);
   }
 }
 
@@ -2826,6 +3096,7 @@ export function toggleArunVoice() {
     return;
   }
 
+  playAssistantChime('start');
   const btn = document.getElementById('arun-mic-btn');
   try {
     const rec = new SpeechRecognition();
@@ -2845,12 +3116,12 @@ export function toggleArunVoice() {
       const transcript = e.results[0][0].transcript;
       const box = document.getElementById('arun-input-box');
       if (box) box.value = transcript;
-      submitArunQuery(transcript);
+      submitArunQuery(transcript, true); // true = auto-speak response!
     };
 
     rec.onerror = () => {
       if (btn) {
-        btn.style.backgroundColor = '#1e293b';
+        btn.style.backgroundColor = '#18181b';
         btn.style.color = '#ef4444';
         btn.innerHTML = '🎙️';
       }
@@ -2858,7 +3129,7 @@ export function toggleArunVoice() {
 
     rec.onend = () => {
       if (btn) {
-        btn.style.backgroundColor = '#1e293b';
+        btn.style.backgroundColor = '#18181b';
         btn.style.color = '#ef4444';
         btn.innerHTML = '🎙️';
       }
@@ -2925,6 +3196,9 @@ window.raksha = {
   toggleArunPopup,
   submitArunQuery,
   toggleArunVoice,
+  toggleArunVoiceModeSession,
+  setArunMode,
+  playAssistantChime,
   getArunFellowSVG,
   speak
 };

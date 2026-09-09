@@ -554,3 +554,97 @@ body, html {
   }
 }
 
+/* =================================================================
+   GEMINI LIVE & GOOGLE ASSISTANT VOICE MODE STYLES
+   ================================================================= */
+.gemini-voice-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  height: 100%;
+}
+
+.gemini-voice-orb {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  margin: 14px auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #ef4444 0%, #090d16 75%);
+  box-shadow: 0 0 35px rgba(239, 68, 68, 0.65), 0 0 60px rgba(56, 189, 248, 0.35);
+  animation: gemini-orb-pulse 2.2s ease-in-out infinite;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.gemini-voice-orb.listening {
+  animation: gemini-orb-listen 1.2s ease-in-out infinite;
+  box-shadow: 0 0 45px rgba(56, 189, 248, 0.8), 0 0 80px rgba(239, 68, 68, 0.5);
+}
+
+.gemini-voice-orb.speaking {
+  animation: gemini-orb-speak 0.9s ease-in-out infinite;
+  box-shadow: 0 0 50px rgba(239, 68, 68, 0.9), 0 0 90px rgba(251, 191, 36, 0.6);
+}
+
+@keyframes gemini-orb-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@keyframes gemini-orb-listen {
+  0%, 100% { transform: scale(1.04); }
+  50% { transform: scale(1.15); }
+}
+@keyframes gemini-orb-speak {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+.gemini-voice-waves {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 42px;
+  margin: 14px 0;
+}
+
+.gemini-wave-bar {
+  width: 6px;
+  border-radius: 4px;
+  animation: gemini-wave-anim 1.1s ease-in-out infinite;
+}
+.gemini-wave-bar:nth-child(1) { height: 16px; background: #38bdf8; animation-delay: 0.0s; }
+.gemini-wave-bar:nth-child(2) { height: 32px; background: #ef4444; animation-delay: 0.2s; }
+.gemini-wave-bar:nth-child(3) { height: 42px; background: #fbbf24; animation-delay: 0.4s; }
+.gemini-wave-bar:nth-child(4) { height: 26px; background: #3b82f6; animation-delay: 0.6s; }
+.gemini-wave-bar:nth-child(5) { height: 14px; background: #22c55e; animation-delay: 0.8s; }
+
+@keyframes gemini-wave-anim {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.6; }
+  50% { transform: scaleY(1.4); opacity: 1; }
+}
+
+.gemini-live-transcript {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 12px 14px;
+  max-width: 90%;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #f1f5f9;
+  min-height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 10px 0;
+}
+
