@@ -1,0 +1,266 @@
+{
+  "alerts": [
+    {
+      "id": "alt-01",
+      "title": "NH-13 Potin-Pangin Landslide Warning",
+      "description": "Active debris flow near Potin and Yazali. Trans-Arunachal Highway blocked between KM 42 and KM 58. Heavy mudslides reported.",
+      "severity": "CRITICAL",
+      "hazardType": "LANDSLIDE",
+      "affectedDistricts": [
+        "lower_subansiri",
+        "keyi_panyor",
+        "papum_pare"
+      ],
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T08:25:02.596Z"
+    },
+    {
+      "id": "alt-02",
+      "title": "Siang River Surge & Flood Alert",
+      "description": "Central Water Commission reports water levels above warning mark at Pasighat. Low-lying areas in Mebo and Sille under high flood risk.",
+      "severity": "HIGH",
+      "hazardType": "FLASH_FLOOD",
+      "affectedDistricts": [
+        "east_siang",
+        "siang",
+        "upper_siang"
+      ],
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T07:35:02.596Z"
+    },
+    {
+      "id": "alt-03",
+      "title": "Seismic Tremor Detected — Mishmi Thrust",
+      "description": "Magnitude 4.8 tremor recorded at depth 18km near Roing-Anini fault line. Rockfall hazard high on NH-313 mountain stretches.",
+      "severity": "MODERATE",
+      "hazardType": "EARTHQUAKE",
+      "affectedDistricts": [
+        "dibang_valley",
+        "lower_dibang_valley",
+        "lohit"
+      ],
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T05:50:02.596Z"
+    }
+  ],
+  "sosSignals": [
+    {
+      "id": "SOS-28117BC9",
+      "coordinates": {
+        "lat": 26.48581081501636,
+        "lon": 80.33583856297552
+      },
+      "altitudeMeters": 340,
+      "batteryLevel": 82,
+      "medicalTriage": "UNINJURED",
+      "headcount": 1,
+      "notes": "Emergency assistance requested",
+      "deviceType": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+      "status": "TRANSMITTED",
+      "createdAt": "2026-09-09T14:07:57.605Z",
+      "dispatchedTo": [
+        "SEOC Itanagar (1070)",
+        "12th Bn NDRF Emchi/Doimukh",
+        "AP Police QRT Chimpu"
+      ]
+    },
+    {
+      "id": "SOS-CDFAF126",
+      "coordinates": {
+        "lat": 26.485769398999604,
+        "lon": 80.33586875848107
+      },
+      "altitudeMeters": 340,
+      "batteryLevel": 82,
+      "medicalTriage": "UNINJURED",
+      "headcount": 1,
+      "notes": "Emergency assistance requested",
+      "deviceType": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+      "status": "TRANSMITTED",
+      "createdAt": "2026-09-09T09:48:01.403Z",
+      "dispatchedTo": [
+        "SEOC Itanagar (1070)",
+        "12th Bn NDRF Emchi/Doimukh",
+        "AP Police QRT Chimpu"
+      ]
+    },
+    {
+      "id": "SOS-24753E0D",
+      "coordinates": {
+        "lat": 26.48563191448674,
+        "lon": 80.33580608734519
+      },
+      "altitudeMeters": 340,
+      "batteryLevel": 82,
+      "medicalTriage": "UNINJURED",
+      "headcount": 1,
+      "notes": "Emergency assistance requested",
+      "deviceType": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+      "status": "TRANSMITTED",
+      "createdAt": "2026-09-09T09:22:01.973Z",
+      "dispatchedTo": [
+        "SEOC Itanagar (1070)",
+        "12th Bn NDRF Emchi/Doimukh",
+        "AP Police QRT Chimpu"
+      ]
+    }
+  ],
+  "hazardReports": [
+    {
+      "id": "rep-530566",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T14:02:10.566Z"
+    },
+    {
+      "id": "rep-252401",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T10:20:52.401Z"
+    },
+    {
+      "id": "rep-070880",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T10:17:50.880Z"
+    },
+    {
+      "id": "rep-394122",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T10:06:34.122Z"
+    },
+    {
+      "id": "rep-025221",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "tourist",
+      "district": "West Kameng",
+      "locationName": "BCT Road near Munna Camp",
+      "coordinates": {
+        "lat": 27.35,
+        "lon": 92.42
+      },
+      "description": "Rockfall blocking single lane",
+      "severity": "MODERATE",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T10:00:25.221Z"
+    },
+    {
+      "id": "rep-01",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Lower Subansiri",
+      "locationName": "Potin-Yazali Stretch (KM 48, NH-13)",
+      "coordinates": {
+        "lat": 27.35,
+        "lon": 93.75
+      },
+      "description": "Substantial regolith slide with three uprooted pine trees blocking both highway lanes. BRO JCB excavators on site clearing single lane.",
+      "severity": "CRITICAL",
+      "status": "CONFIRMED",
+      "timestamp": "2026-09-09T09:22:32.401Z"
+    },
+    {
+      "id": "rep-02",
+      "hazardType": "ROAD_BLOCKED",
+      "reporterType": "tourist",
+      "district": "West Kameng",
+      "locationName": "Baisakhi Approach to Sela Top",
+      "coordinates": {
+        "lat": 27.5,
+        "lon": 92.1
+      },
+      "description": "Old Sela Pass road has black ice and falling rocks. Sela Tunnel (new route) is fully clear and operational for all tourist cabs.",
+      "severity": "HIGH",
+      "status": "VERIFIED",
+      "timestamp": "2026-09-09T08:32:32.401Z"
+    },
+    {
+      "id": "rep-03",
+      "hazardType": "FLASH_FLOOD",
+      "reporterType": "official",
+      "district": "East Siang",
+      "locationName": "Ranaghat Ghat, Pasighat",
+      "coordinates": {
+        "lat": 28.08,
+        "lon": 95.34
+      },
+      "description": "Siang river gauge rose 1.8m in last 3 hours following cloudburst in Upper Siang. Low silt embankments submerged.",
+      "severity": "HIGH",
+      "status": "CONFIRMED",
+      "timestamp": "2026-09-09T08:07:32.401Z"
+    }
+  ],
+  "shelters": [
+    {
+      "id": "sz_itanagar_igp",
+      "name": "IG Park, Itanagar",
+      "lat": 27.091,
+      "lon": 93.612,
+      "capacity": 5000,
+      "facilities": [
+        "Helipad access",
+        "Medical camp space",
+        "Water supply"
+      ]
+    },
+    {
+      "id": "sz_pasighat_stadium",
+      "name": "Pasighat General Stadium",
+      "lat": 28.065,
+      "lon": 95.33,
+      "capacity": 3000,
+      "facilities": [
+        "Helipad access",
+        "Hospital nearby"
+      ]
+    },
+    {
+      "id": "sz_ziro_padi",
+      "name": "Padi Yube Stadium, Ziro",
+      "lat": 27.56,
+      "lon": 93.83,
+      "capacity": 2500,
+      "facilities": [
+        "High ground",
+        "Medical camp space"
+      ]
+    }
+  ]
+}

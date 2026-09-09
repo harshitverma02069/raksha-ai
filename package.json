@@ -1,0 +1,43 @@
+{
+  "name": "raksha-ai",
+  "version": "1.0.0",
+  "description": "RAKSHA AI — Arunachal Pradesh Disaster Survival Intelligence System",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test-verification.js",
+    "build": "echo 'No build step required for ES modules'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^4.2.1",
+    "dexie": "^4.0.8",
+    "express": "^4.21.0",
+    "ws": "^8.18.0",
+    "better-sqlite3": "^11.2.0",
+    "cors": "^2.8.5",
+    "uuid": "^10.0.0",
+    "concurrently": "^8.2.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2",
+    "vite-plugin-pwa": "^0.20.1",
+    "workbox-precaching": "^7.1.0",
+    "workbox-routing": "^7.1.0",
+    "workbox-strategies": "^7.1.0",
+    "workbox-expiration": "^7.1.0",
+    "workbox-background-sync": "^7.1.0"
+  },
+  "main": "vite.config.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
