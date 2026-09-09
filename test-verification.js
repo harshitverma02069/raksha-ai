@@ -266,6 +266,34 @@ async function runAsyncTests() {
     const allHaveContent = USER_MANUAL_ITEMS.every(item => item.content && item.content.en && item.content.hi);
     assert(allHaveContent, 'All manual items contain detailed survival protocols & instructions in English & Hindi');
 
+    // 8l. Geotechnical FoS Explanation
+    const aiFoSRes = await fetch('http://localhost:3000/api/ai/copilot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: 'What is the geotechnical Factor of Safety FoS formula for mountain slope failure?',
+        userDistrict: 'Papum Pare',
+        language: 'en',
+        persona: 'resident'
+      })
+    });
+    const aiFoSData = await aiFoSRes.json();
+    assert(aiFoSData.response.toLowerCase().includes('factor of safety') && (aiFoSData.response.includes('FoS') || aiFoSData.response.includes('STABLE')), 'AI Copilot provides geotechnical Factor of Safety (FoS) intelligence');
+
+    // 8m. Deep District Terrain Briefing (Tawang & Sela Tunnel)
+    const aiDistRes = await fetch('http://localhost:3000/api/ai/copilot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: 'Tell me about Tawang terrain, elevation, and Sela Pass hazards',
+        userDistrict: 'Tawang',
+        language: 'en',
+        persona: 'tourist'
+      })
+    });
+    const aiDistData = await aiDistRes.json();
+    assert(aiDistData.response.includes('Tawang') || aiDistData.response.includes('Sela Tunnel') || aiDistData.response.includes('SELA'), 'AI Copilot provides deep terrain briefing for Tawang and Sela Tunnel');
+
   } catch (err) {
     console.error('Async test error:', err);
     assert(false, `Async testing encountered error: ${err.message}`);

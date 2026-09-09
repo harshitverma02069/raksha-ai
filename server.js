@@ -888,11 +888,47 @@ async function handleAPI(req, res, pathname, parsedUrl) {
     }
   }
 
-  // 7c. Full-Featured Survival AI Assistant ("Gemini Rakshak AI")
+  // 7c. Full-Featured Survival AI Assistant ("Gemini Rakshak AI" / "arun_safe-ai")
   if (pathname === '/api/ai/copilot' && req.method === 'POST') {
     const body = await parseBody(req);
-    const { query = '', userDistrict = 'Papum Pare', language = 'en', persona = 'resident', apiKey } = body;
+    const {
+      query = '',
+      userDistrict = 'Papum Pare',
+      language = 'en',
+      persona = 'resident',
+      apiKey,
+      conversationHistory = [],
+      liveTelemetry = null
+    } = body;
     const activeKey = (apiKey || process.env.GEMINI_API_KEY || '').trim();
+
+    // Look up deep district encyclopedia profile
+    const normalizedDist = (userDistrict || 'Papum Pare').toLowerCase().replace(/[^a-z0-9]/g, '_');
+    let distProfile = ARUNACHAL_ENCYCLOPEDIA.districts[normalizedDist] || null;
+    if (!distProfile) {
+      for (const [k, d] of Object.entries(ARUNACHAL_ENCYCLOPEDIA.districts)) {
+        if (d.name.toLowerCase().includes((userDistrict || '').toLowerCase()) || (userDistrict || '').toLowerCase().includes(d.name.toLowerCase())) {
+          distProfile = d;
+          break;
+        }
+      }
+    }
+
+    const distContextStr = distProfile ? `
+District: ${distProfile.name}
+Headquarters: ${distProfile.headquarters} (Elevation Range: ${distProfile.elevationRange})
+Rivers: ${distProfile.rivers.join(', ')}
+Critical Transit Chokepoints: ${distProfile.criticalPoints.join(', ')}
+Primary Hazard Risks: ${distProfile.disasterRisks.join('; ')}
+Lifelines: ${distProfile.lifelines.join('; ')}
+${distProfile.escapeAdvice ? `Escape Protocol: ${distProfile.escapeAdvice}` : ''}
+` : `District: ${userDistrict} (Elevation ~750m, Seismic Zone V)`;
+
+    const telemetryStr = liveTelemetry ? `
+Live Weather: Rain ${liveTelemetry.precipitation1h ?? 0} mm/h, Temp ${liveTelemetry.tempC ?? 22}°C, Wind ${liveTelemetry.windKmh ?? 10} km/h
+Slope Factor of Safety (FoS): ${liveTelemetry.fos ?? '1.24'} (${liveTelemetry.fosStatus ?? 'MARGINAL'})
+Active Alerts: ${liveTelemetry.alerts || 'Monsoon slope saturation active on NH-13 & Siang Valley'}
+` : `Roadways: Sela Tunnel (Twin-Tubes 1 & 2 at 13,000 ft) OPEN & All-Weather Safe. Old Sela Pass CLOSED. NH-13 Potin-Yazali Restricted.`;
 
     // Check if user supplied a Gemini API key (client-side or server .env)
     if (activeKey) {
@@ -907,29 +943,48 @@ async function handleAPI(req, res, pathname, parsedUrl) {
 
       const uniqueModels = [...new Set(candidateModels)];
 
+      const systemPrompt = `You are arun_safe-ai (रक्षा / RAKSHA AI), the hyper-intelligent Arunachal Pradesh mountain disaster survival companion powered by Google Gemini.
+You possess world-class expertise in Himalayan terrain, geotechnical slope stability (FoS), Flash flood hydrology, tribal jungle survival, and high-altitude emergency navigation.
+
+=== CURRENT REAL-TIME DISTRICT TELEMETRY ===
+${distContextStr}
+${telemetryStr}
+
+=== USER PERSONA: ${persona.toUpperCase()} ===
+- RESIDENT: Deep tactical survival. Factor of Safety (FoS < 1.0) geomechanics, 90° lateral sprint, bamboo water harvesting (Dendrocalamus hamiltonii), wild edible plants, house slope protection, local DEOC / NDRF Doimukh lifelines.
+- TOURIST: Travel feasibility, Sela Tunnel (13,000 ft, all-weather operational) vs Old Sela Pass (13,700 ft, closed/black ice), Inner Line Permit (ILP) automatic legal validity extension under Section 4 of Bengal Eastern Frontier Regulation 1873 during state-declared disasters, Acute Mountain Sickness (AMS) high-altitude triage for Tawang (10,000 ft) / Bum La (15,200 ft), and exit corridors to Assam (Guwahati GAU, Tezpur TEZ, Dibrugarh DIB).
+- MONITOR: Official / Remote Family. Needs statewide situation across all 28 districts, USGS Zone V seismic tremors, NH-13/BCT highway status, and river crest levels.
+
+Language: Respond fluently in ${language} (if Hindi or tribal dialect, use authentic phonetic words).
+Tone: Calm, authoritative, highly protective, crisp, actionable.
+Format: Structured Markdown with bold headings, clean bullet points, and key emergency numbers (State EOC 1070, 12th Bn NDRF Doimukh 0360-2277107, Ambulance 108, Police 112).
+User Query: "${query}"`;
+
+      // Build structured multi-turn conversation contents
+      const contents = [];
+      if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-8);
+        for (const turn of recentHistory) {
+          const role = (turn.role === 'model' || turn.role === 'ai' || turn.role === 'assistant') ? 'model' : 'user';
+          const text = turn.text || turn.parts?.[0]?.text || '';
+          if (text) {
+            contents.push({ role, parts: [{ text }] });
+          }
+        }
+      }
+
+      contents.push({
+        role: 'user',
+        parts: [{ text: systemPrompt }]
+      });
+
       for (const mod of uniqueModels) {
         try {
           const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${activeKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [{
-                  text: `You are RAKSHA AI (रक्षा), the elite mountain disaster survival and geographical intelligence copilot powered by Google Gemini, designed specifically for Arunachal Pradesh, India.
-
-User Persona: ${persona.toUpperCase()}
-- RESIDENT: Living in Arunachal. Needs tactical slope failure (FoS < 1.0) survival, 90° lateral sprint advice, mountain bamboo drinking water tapping (Dendrocalamus hamiltonii), wild edible plants, and emergency lifelines.
-- TOURIST: Outside visitor/traveler. Needs travel feasibility, Sela Tunnel (13,000 ft, all-weather operational) vs Old Sela Pass (13,700 ft, closed/black ice), Inner Line Permit (ILP) automatic legal validity extension under Section 4 of Bengal Eastern Frontier Regulation 1873 during state-declared disasters, Acute Mountain Sickness (AMS) high-altitude triage for Tawang (10,000 ft) / Bum La (15,200 ft), and exit corridors to Assam (Guwahati GAU, Tezpur TEZ, Dibrugarh DIB).
-- MONITOR: Official / Remote Family. Needs statewide situation across all 28 districts, USGS Zone V seismic tremors, NH-13/BCT highway status, and river crest levels.
-
-Current User District: ${userDistrict}, Arunachal Pradesh.
-Language: Respond fluently in ${language} (if Hindi or tribal dialect, use authentic phonetic words).
-Format your response with rich Markdown: bold titles, bullet points, clean structure, and emergency phone numbers (State EOC 1070, 12th Bn NDRF 0360-2277107, Ambulance 108).
-User Query: "${query}"
-Deliver calm, authoritative, life-saving advice.`
-                }]
-              }]
-            })
+            body: JSON.stringify({ contents }),
+            signal: AbortSignal.timeout(3000)
           });
 
           if (geminiRes.ok) {
@@ -946,15 +1001,18 @@ Deliver calm, authoritative, life-saving advice.`
               }));
               return;
             }
+          } else if (geminiRes.status === 400 || geminiRes.status === 403) {
+            // Key is invalid or rejected; abort loop immediately for instant local response
+            break;
           }
         } catch (geminiErr) {
-          // Continue to next model candidate
+          // Continue to next candidate on transient network error
         }
       }
     }
 
     // High-Precision Local Arunachal Disaster AI Survival Engine (Instant, Offline-Capable, Persona-Trained)
-    const localResponse = generateLocalSurvivalResponse(query, userDistrict, language, persona);
+    const localResponse = generateLocalSurvivalResponse(query, userDistrict, language, persona, distProfile, liveTelemetry);
     res.writeHead(200);
     res.end(JSON.stringify({
       success: true,
@@ -971,23 +1029,22 @@ Deliver calm, authoritative, life-saving advice.`
 }
 
 // Local Expert Survival Intelligence Generator (Multi-Persona & Multi-Lingual)
-function generateLocalSurvivalResponse(query, districtName, lang, persona = 'resident') {
+function generateLocalSurvivalResponse(query, districtName, lang, persona = 'resident', distProfile = null, telemetry = null) {
   const q = query.toLowerCase();
 
   // Multi-lingual Greetings
   let greetingPrefix = '';
-  if (lang === 'hi') greetingPrefix = 'नमस्ते! रक्षक एआई आपदा मार्गदर्शक।\n\n';
+  if (lang === 'hi') greetingPrefix = 'नमस्ते! रक्षक एआई (arun_safe-ai) आपदा मार्गदर्शक।\n\n';
   else if (lang === 'ny') greetingPrefix = 'Khamani! Nyishi Aane Donyi Polo Raksha AI.\n\n';
   else if (lang === 'adi') greetingPrefix = 'Gidumika! Adi Agom Siang Raksha AI.\n\n';
   else if (lang === 'gal') greetingPrefix = 'Gidai! Galo Kiding Aalo Raksha AI.\n\n';
   else if (lang === 'mon') greetingPrefix = 'Tashi Delek! Tawang Monpa Raksha AI.\n\n';
   else if (lang === 'wan') greetingPrefix = 'Man-tai! Wancho Longding Raksha AI.\n\n';
 
-
   // ==========================================
   // TOURIST / OUTSIDER / VISITOR PERSONA
   // ==========================================
-  if (persona === 'tourist' || q.includes('permit') || q.includes('ilp') || q.includes('sela') || q.includes('visit') || q.includes('tourist') || q.includes('ams') || q.includes('altitude') || q.includes('flight') || q.includes('hotel')) {
+  if (persona === 'tourist' || q.includes('permit') || q.includes('ilp') || q.includes('sela') || q.includes('visit') || q.includes('tourist') || q.includes('ams') || q.includes('altitude') || q.includes('flight') || q.includes('hotel') || q.includes('pass')) {
 
     if (q.includes('permit') || q.includes('ilp') || q.includes('inner line')) {
       return `${greetingPrefix}📋 **INNER LINE PERMIT (ILP) & DISASTER PASSAGE GUIDELINES**:
@@ -1058,6 +1115,20 @@ function generateLocalSurvivalResponse(query, districtName, lang, persona = 'res
   }
 
   // ==========================================
+  // GEOTECHNICAL & FACTOR OF SAFETY (FoS)
+  // ==========================================
+  if (q.includes('fos') || q.includes('factor of safety') || q.includes('stability') || q.includes('slope angle') || q.includes('formula')) {
+    return `${greetingPrefix}🧮 **Geotechnical Factor of Safety (FoS) Explanation**:
+- **Infinite Slope Formula**:
+  $$FoS = \\frac{c' + (\\gamma z - \\gamma_w z_w)\\cos^2\\theta \\tan\\phi'}{\\gamma z \\sin\\theta \\cos\\theta}$$
+- **Safety Benchmarks**:
+  &bull; **$FoS > 1.30$ (STABLE)**: Resisting shear forces exceed gravitational driving stress. Safe for normal passage.
+  &bull; **$1.00 \\le FoS \\le 1.30$ (MARGINAL / ALERT)**: Water saturation ($z_w$) is reducing effective normal stress. High vigilance required.
+  &bull; **$FoS < 1.00$ (FAILURE IMMINENT)**: Driving shear stress exceeds shear strength. Instant slope collapse triggered!
+- **Tactical Action**: If FoS drops below 1.0, evacuate immediately perpendicular (90°) to the fall line outside reach angle $\\alpha = 24^\\circ$.`;
+  }
+
+  // ==========================================
   // LOCAL RESIDENT / ENDANGERED CIVILIAN PERSONA
   // ==========================================
   if (q.includes('landslide') || q.includes('mudslide') || q.includes('falling rock') || q.includes('slope') || q.includes('nh-13') || q.includes('potin')) {
@@ -1083,7 +1154,7 @@ function generateLocalSurvivalResponse(query, districtName, lang, persona = 'res
 5. **EMERGENCY ASSISTANCE**: Contact 12th Bn NDRF Doimukh (0360-2277107) or State EOC (1070).`;
   }
 
-  if (q.includes('jungle') || q.includes('food') || q.includes('bamboo') || q.includes('shelter') || q.includes('survive') || q.includes('wild')) {
+  if (q.includes('jungle') || q.includes('food') || q.includes('bamboo') || q.includes('shelter') || q.includes('survive') || q.includes('wild') || q.includes('water')) {
     return `${greetingPrefix}🎋 **ARUNACHAL TRIBAL JUNGLE SURVIVAL TECHNIQUES**:
 1. **Safe Wild Food**: Wild fiddlehead ferns (*dhekia saag*), inner shoot core of wild banana tree (*kola thol*), and young bamboo shoots (*eup* / *bamboo shoot*). Avoid brightly colored wild mushrooms or milky sap berries.
 2. **Potable Water from Bamboo**: Large mountain bamboo (*Dendrocalamus hamiltonii*) stores clean, filtered drinking water in sealed lower internodes. Pierce joint with knife to tap potable water.
@@ -1091,7 +1162,7 @@ function generateLocalSurvivalResponse(query, districtName, lang, persona = 'res
 4. **Keep Fire Burning**: Smoke deters leeches (*dimdum* / pit vipers) and alerts search aircraft.`;
   }
 
-  if (q.includes('flood') || q.includes('siang') || q.includes('river') || q.includes('water') || q.includes('pasighat')) {
+  if (q.includes('flood') || q.includes('siang') || q.includes('river') || q.includes('pasighat') || q.includes('surge')) {
     if (lang === 'hi') {
       return `${greetingPrefix}🌊 **सियांग नदी बाढ़ व जल surge रक्षा निर्देश**:
 1. **ऊंचाई पर चढ़ें (Vertical Evacuation)**: नदी के किनारे से तुरंत कम से कम 15 मीटर ऊपर पहाड़ी पर चढ़ें। सियांग नदी में 10 से 30 मीटर तक की लहरें आ सकती हैं।
@@ -1141,7 +1212,20 @@ ${distData.escapeAdvice ? `\n💡 **TACTICAL ESCAPE ADVICE**: ${distData.escapeA
     }
   }
 
-  return `${greetingPrefix}🛡️ **RAKSHA AI SURVIVAL ADVISOR (${districtName})**:
+  // If user asks about their current district or safe spots
+  if (distProfile) {
+    const greeting = distProfile.greeting ? `**Greeting (${distProfile.languages?.[0] || 'Local'}):** ${distProfile.greeting}\n\n` : '';
+    return `${greeting}📍 **TERRAIN BRIEFING FOR YOUR DISTRICT: ${distProfile.name.toUpperCase()}**:
+- **Headquarters & Elevation**: ${distProfile.headquarters} (Elevation Range: ${distProfile.elevationRange})
+- **Primary Rivers & Valleys**: ${distProfile.rivers.join(', ')}
+- **Key Critical Points**: ${distProfile.criticalPoints.join(', ')}
+- **Active Hazards**: ${distProfile.disasterRisks.join(' &bull; ')}
+- **Lifelines & Emergency Hubs**: ${distProfile.lifelines.join('\n  &bull; ')}
+${distProfile.escapeAdvice ? `\n💡 **TACTICAL ESCAPE ADVICE**: ${distProfile.escapeAdvice}` : ''}
+\n📞 **Emergency Lifelines**: State EOC: **1070** | District Control: **1077** | Police: **112** | Ambulance: **108** | 12th Bn NDRF: **0360-2277107**.`;
+  }
+
+  return `${greetingPrefix}🛡️ **arun_safe-ai MOUNTAIN COPILOT (${districtName})**:
 - **Active Mode**: ${persona.toUpperCase()}
 - **Current Threat Evaluation**: Keep phone charged; monitor NH-13 Trans-Arunachal Highway and Sela Tunnel status.
 - **Mountain Survival Kit**: Potable water (2L/day), iodine tablets, high-calorie ration, whistle, heavy waterproof tarp.

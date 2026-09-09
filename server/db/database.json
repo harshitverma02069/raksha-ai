@@ -45,6 +45,26 @@
   ],
   "sosSignals": [
     {
+      "id": "SOS-F45BBE0E",
+      "coordinates": {
+        "lat": 26.485579854575157,
+        "lon": 80.33572075995244
+      },
+      "altitudeMeters": 340,
+      "batteryLevel": 82,
+      "medicalTriage": "UNINJURED",
+      "headcount": 1,
+      "notes": "Emergency assistance requested",
+      "deviceType": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+      "status": "TRANSMITTED",
+      "createdAt": "2026-09-09T15:01:36.864Z",
+      "dispatchedTo": [
+        "SEOC Itanagar (1070)",
+        "12th Bn NDRF Emchi/Doimukh",
+        "AP Police QRT Chimpu"
+      ]
+    },
+    {
       "id": "SOS-28117BC9",
       "coordinates": {
         "lat": 26.48581081501636,
@@ -106,6 +126,126 @@
     }
   ],
   "hazardReports": [
+    {
+      "id": "rep-138860",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T15:18:58.860Z"
+    },
+    {
+      "id": "rep-097804",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T15:18:17.804Z"
+    },
+    {
+      "id": "rep-074093",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T15:17:54.093Z"
+    },
+    {
+      "id": "rep-955667",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T15:15:55.667Z"
+    },
+    {
+      "id": "rep-791346",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T14:56:31.346Z"
+    },
+    {
+      "id": "rep-584472",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T14:53:04.472Z"
+    },
+    {
+      "id": "rep-501119",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T14:35:01.119Z"
+    },
+    {
+      "id": "rep-749986",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T14:22:29.986Z"
+    },
     {
       "id": "rep-530566",
       "hazardType": "LANDSLIDE",

@@ -32,6 +32,16 @@ export const state = {
   arunVoiceMode: false,
   arunVoiceStatus: 'idle', // 'idle' | 'listening' | 'thinking' | 'speaking'
   arunLiveTranscript: '',
+  audioPlayer: {
+    type: 'none', // 'speech' | 'siren' | 'none'
+    status: 'idle', // 'playing' | 'paused' | 'idle'
+    text: '',
+    label: '',
+    rate: 1.0,
+    utterance: null,
+    sirenGainNode: null
+  },
+  arunHistory: [],
   arunChatMessages: [
     {
       role: 'ai',
@@ -116,12 +126,167 @@ export function t(key) {
   return key;
 }
 
-// Multi-Lingual Speech Synthesis
+// ==========================================
+// UNIVERSAL AUDIO CONTROLLER (Stop, Pause, Resume, Restart)
+// ==========================================
+export function stopAudio() {
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel(); } catch(e) {}
+  }
+  if (state.isAlarmPlaying) {
+    stopSirenInternal();
+  }
+  state.audioPlayer.status = 'idle';
+  state.audioPlayer.type = 'none';
+  state.audioPlayer.sirenGainNode = null;
+  state.arunVoiceStatus = 'idle';
+  updateAudioPlayerUI();
+  updateAlarmButtonUI();
+  if (state.isArunPopupOpen) {
+    toggleArunPopup(true);
+  }
+}
+
+export function pauseAudio() {
+  if (state.audioPlayer.type === 'speech') {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.pause();
+        state.audioPlayer.status = 'paused';
+        state.arunVoiceStatus = 'idle';
+      } catch(e) {}
+    }
+  } else if (state.audioPlayer.type === 'siren' && state.audioPlayer.sirenGainNode && state.alarmAudioCtx) {
+    try {
+      state.audioPlayer.sirenGainNode.gain.setValueAtTime(0, state.alarmAudioCtx.currentTime);
+      state.audioPlayer.status = 'paused';
+    } catch(e) {}
+  }
+  updateAudioPlayerUI();
+  if (state.isArunPopupOpen) {
+    toggleArunPopup(true);
+  }
+}
+
+export function resumeAudio() {
+  if (state.audioPlayer.type === 'speech') {
+    if ('speechSynthesis' in window) {
+      try {
+        if (state.audioPlayer.status === 'paused') {
+          window.speechSynthesis.resume();
+          state.audioPlayer.status = 'playing';
+          state.arunVoiceStatus = 'speaking';
+        } else if (state.audioPlayer.text) {
+          speak(state.audioPlayer.text, state.audioPlayer.rate);
+        }
+      } catch(e) {
+        if (state.audioPlayer.text) speak(state.audioPlayer.text, state.audioPlayer.rate);
+      }
+    }
+  } else if (state.audioPlayer.type === 'siren' && state.audioPlayer.sirenGainNode && state.alarmAudioCtx) {
+    try {
+      state.audioPlayer.sirenGainNode.gain.setValueAtTime(0.45, state.alarmAudioCtx.currentTime);
+      state.audioPlayer.status = 'playing';
+    } catch(e) {}
+  }
+  updateAudioPlayerUI();
+  if (state.isArunPopupOpen) {
+    toggleArunPopup(true);
+  }
+}
+
+export function restartAudio() {
+  if (state.audioPlayer.type === 'speech') {
+    const text = state.audioPlayer.text;
+    const rate = state.audioPlayer.rate;
+    if ('speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch(e) {}
+    }
+    state.audioPlayer.status = 'idle';
+    if (text) {
+      speak(text, rate);
+    }
+  } else if (state.audioPlayer.type === 'siren') {
+    stopSirenInternal();
+    toggleEmergencySiren();
+  }
+  updateAudioPlayerUI();
+  if (state.isArunPopupOpen) {
+    toggleArunPopup(true);
+  }
+}
+
+// Floating Universal Audio Controller Widget in DOM
+export function updateAudioPlayerUI() {
+  let bar = document.getElementById('floating-audio-bar');
+  if (state.audioPlayer.status === 'idle') {
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'floating-audio-bar';
+    bar.className = 'floating-audio-bar';
+    document.body.appendChild(bar);
+  }
+
+  bar.style.display = 'flex';
+  const isPlaying = state.audioPlayer.status === 'playing';
+  const isSiren = state.audioPlayer.type === 'siren';
+
+  bar.innerHTML = `
+    <div class="audio-bar-info">
+      <div class="audio-bar-wave ${isPlaying ? 'active' : ''}">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="audio-bar-labels">
+        <div class="audio-bar-tag ${isSiren ? 'siren' : ''}">
+          ${isSiren ? '🚨 SIREN' : '🎙️ ASSISTANT'} &bull; ${state.audioPlayer.status.toUpperCase()}
+        </div>
+        <div class="audio-bar-title" title="${state.audioPlayer.text}">
+          ${state.audioPlayer.label || 'Audio Playback Active'}
+        </div>
+      </div>
+    </div>
+    <div class="audio-bar-actions">
+      ${isPlaying ? `
+        <button onclick="window.raksha.pauseAudio()" class="audio-action-btn pause" title="Pause Audio">
+          ⏸️ Pause
+        </button>
+      ` : `
+        <button onclick="window.raksha.resumeAudio()" class="audio-action-btn resume" title="Resume Audio">
+          ▶️ Resume
+        </button>
+      `}
+      <button onclick="window.raksha.restartAudio()" class="audio-action-btn restart" title="Restart Audio">
+        🔄 Restart
+      </button>
+      <button onclick="window.raksha.stopAudio()" class="audio-action-btn stop" title="Stop Audio">
+        ⏹️ Stop
+      </button>
+    </div>
+  `;
+}
+
+// Multi-Lingual Speech Synthesis with Sanitization & Natural Fluency
 export function speak(text, rate = 1.0) {
   if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
+  try { window.speechSynthesis.cancel(); } catch(e) {}
 
-  const utterance = new SpeechSynthesisUtterance(text);
+  // Strip Markdown, code, URLs, and symbols for clean spoken voice
+  const cleanText = text
+    .replace(/[*#_`>]/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\$\$[\s\S]*?\$\$/g, 'formula')
+    .replace(/\$[^$]+\$/g, 'formula')
+    .replace(/&bull;/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleanText) return;
+
+  const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.rate = rate;
   utterance.pitch = 1.0;
 
@@ -135,31 +300,71 @@ export function speak(text, rate = 1.0) {
     utterance.lang = 'en-IN';
   }
 
+  state.audioPlayer = {
+    type: 'speech',
+    status: 'playing',
+    text: cleanText,
+    label: cleanText.length > 48 ? cleanText.slice(0, 45) + '...' : cleanText,
+    rate,
+    utterance,
+    sirenGainNode: null
+  };
+  state.arunVoiceStatus = 'speaking';
+
+  utterance.onend = () => {
+    state.audioPlayer.status = 'idle';
+    state.audioPlayer.type = 'none';
+    if (state.arunVoiceStatus === 'speaking') {
+      state.arunVoiceStatus = 'idle';
+    }
+    updateAudioPlayerUI();
+    if (state.isArunPopupOpen) toggleArunPopup(true);
+  };
+
+  utterance.onerror = () => {
+    state.audioPlayer.status = 'idle';
+    state.audioPlayer.type = 'none';
+    if (state.arunVoiceStatus === 'speaking') {
+      state.arunVoiceStatus = 'idle';
+    }
+    updateAudioPlayerUI();
+    if (state.isArunPopupOpen) toggleArunPopup(true);
+  };
+
   window.speechSynthesis.speak(utterance);
+  updateAudioPlayerUI();
+}
+
+function stopSirenInternal() {
+  if (state.alarmInterval) {
+    clearInterval(state.alarmInterval);
+    state.alarmInterval = null;
+  }
+  if (state.alarmOscillator) {
+    try {
+      state.alarmOscillator.stop();
+      state.alarmOscillator.disconnect();
+    } catch (e) {}
+    state.alarmOscillator = null;
+  }
+  if (state.alarmAudioCtx) {
+    try {
+      state.alarmAudioCtx.close();
+    } catch (e) {}
+    state.alarmAudioCtx = null;
+  }
+  state.isAlarmPlaying = false;
 }
 
 // Emergency Audio Siren Alarm
 export async function toggleEmergencySiren() {
   if (state.isAlarmPlaying) {
-    if (state.alarmInterval) {
-      clearInterval(state.alarmInterval);
-      state.alarmInterval = null;
-    }
-    if (state.alarmOscillator) {
-      try {
-        state.alarmOscillator.stop();
-        state.alarmOscillator.disconnect();
-      } catch (e) {}
-      state.alarmOscillator = null;
-    }
-    if (state.alarmAudioCtx) {
-      try {
-        state.alarmAudioCtx.close();
-      } catch (e) {}
-      state.alarmAudioCtx = null;
-    }
-    state.isAlarmPlaying = false;
+    stopSirenInternal();
+    state.audioPlayer.status = 'idle';
+    state.audioPlayer.type = 'none';
+    state.audioPlayer.sirenGainNode = null;
     updateAlarmButtonUI();
+    updateAudioPlayerUI();
     return;
   }
 
@@ -187,7 +392,18 @@ export async function toggleEmergencySiren() {
 
     state.alarmOscillator = osc;
     state.isAlarmPlaying = true;
+    state.audioPlayer = {
+      type: 'siren',
+      status: 'playing',
+      text: 'Emergency Mountain Disaster Siren Active',
+      label: '🚨 EMERGENCY DISASTER SIREN',
+      rate: 1.0,
+      utterance: null,
+      sirenGainNode: gain
+    };
+
     updateAlarmButtonUI();
+    updateAudioPlayerUI();
 
     // Dual-tone high-low emergency disaster wail (oscillates 1050 Hz <-> 680 Hz)
     let isHigh = false;
@@ -318,6 +534,58 @@ export function setPersona(persona) {
   }
 
   renderActiveTab();
+}
+
+export function setDistrict(districtName) {
+  if (!districtName) return;
+  state.userDistrict = districtName;
+  localStorage.setItem('raksha_district', districtName);
+
+  // Match coordinates in DISTRICTS
+  const found = DISTRICTS.find(d => 
+    d.name.toLowerCase() === districtName.toLowerCase() || 
+    d.id.toLowerCase() === districtName.toLowerCase()
+  );
+  if (found && found.coordinates) {
+    state.userLocation.lat = found.coordinates.lat;
+    state.userLocation.lon = found.coordinates.lon;
+    if (found.elevation) state.userLocation.elevation = found.elevation;
+  }
+
+  fetchLiveTelemetry();
+  renderActiveTab();
+  if (state.isArunPopupOpen) {
+    toggleArunPopup(true);
+  }
+}
+
+export function getArunSuggestionChips() {
+  if (state.currentPersona === 'tourist') {
+    return [
+      { label: '🏔️ Sela Tunnel Status', query: 'Is Sela Tunnel open and safe to travel right now?' },
+      { label: '📋 ILP Disaster Extension', query: 'What are the Inner Line Permit disaster validity extension rules?' },
+      { label: '🫁 Altitude Sickness Protocol', query: 'How to avoid and treat Acute Mountain Sickness in Tawang and Bum La?' },
+      { label: '🛫 Safe Exits to Assam', query: 'What are the safe exit transit corridors to Assam airports?' }
+    ];
+  } else if (state.currentPersona === 'monitor') {
+    return [
+      { label: '📡 Statewide Roads Sitrep', query: 'What is the real-time road and landslide status across Arunachal highways?' },
+      { label: '⚡ Seismic Faults Radar', query: 'What is the active seismic tremor risk on Mishmi Thrust and Kopili fault?' },
+      { label: '🌊 Siang River Crest', query: 'What is the current river crest and surge level for Siang river?' },
+      { label: '🚁 Air Lifelines & ALGs', query: 'List all operational Advanced Landing Grounds and helipads in Arunachal' }
+    ];
+  } else {
+    return [
+      { label: '🧮 Check Slope FoS', query: 'What is the Factor of Safety FoS of mountain slopes in my area and when does it fail?' },
+      { label: '🎋 Bamboo Drinking Water', query: 'How do I tap clean drinking water from mountain bamboo in the jungle?' },
+      { label: '🚨 Landslide Lateral Sprint', query: 'What is the 90 degree lateral sprint protocol during an active landslide?' },
+      { label: '📞 12th Bn NDRF Lifeline', query: 'How do I reach the 12th Battalion NDRF Doimukh in an emergency?' }
+    ];
+  }
+}
+
+export function selectSuggestionChip(queryText) {
+  submitArunQuery(queryText);
 }
 
 export async function fetchLiveTelemetry() {
@@ -2814,13 +3082,15 @@ export function toggleArunPopup(force) {
 
 function renderArunVoiceLiveView() {
   const isListening = state.arunVoiceStatus === 'listening';
-  const isSpeaking = state.arunVoiceStatus === 'speaking';
+  const isSpeaking = state.arunVoiceStatus === 'speaking' || state.audioPlayer.status === 'playing';
+  const isPaused = state.audioPlayer.status === 'paused';
   const isThinking = state.arunVoiceStatus === 'thinking';
 
   let statusText = 'Tap the Orb or Mic to talk to arun_safe-ai';
   if (isListening) statusText = '🎙️ Listening... Speak naturally';
   if (isThinking) statusText = '✨ Thinking with Gemini...';
-  if (isSpeaking) statusText = '🔊 Speaking aloud... Tap to interrupt';
+  if (isSpeaking) statusText = '🔊 Speaking aloud...';
+  if (isPaused) statusText = '⏸️ Audio paused &bull; Tap Resume';
 
   return `
     <div class="gemini-voice-modal">
@@ -2843,7 +3113,7 @@ function renderArunVoiceLiveView() {
       </div>
 
       <!-- Status Subtitle -->
-      <div style="font-size: 0.82rem; font-weight: 600; color: ${isListening ? '#38bdf8' : isSpeaking ? '#fbbf24' : '#94a3b8'}; margin-bottom: 8px;">
+      <div style="font-size: 0.82rem; font-weight: 600; color: ${isListening ? '#38bdf8' : isSpeaking ? '#fbbf24' : isPaused ? '#f59e0b' : '#94a3b8'}; margin-bottom: 8px;">
         ${statusText}
       </div>
 
@@ -2852,26 +3122,75 @@ function renderArunVoiceLiveView() {
         ${state.arunLiveTranscript || (state.arunChatMessages.length > 0 ? state.arunChatMessages[state.arunChatMessages.length - 1].text : 'Say: "Is Sela Tunnel open?", "Turn on siren", or "Bamboo water"')}
       </div>
 
-      <!-- Control Buttons -->
-      <div style="display: flex; gap: 10px; margin-top: 10px;">
-        <button onclick="window.raksha.toggleArunVoiceModeSession()" style="background: linear-gradient(135deg, #ef4444, #991b1b); color: #ffffff; border: none; padding: 10px 22px; border-radius: 25px; font-weight: 700; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(239,68,68,0.5);">
-          ${isListening ? '🛑 Stop Listening' : isSpeaking ? '⏹️ Stop Speaking' : '🎙️ Tap to Speak'}
-        </button>
+      <!-- Sound Control Bar: Stop, Pause, Resume, Restart -->
+      <div class="arun-voice-controls-bar">
         ${isSpeaking ? `
-          <button onclick="window.speechSynthesis.cancel(); state.arunVoiceStatus = 'idle'; window.raksha.toggleArunPopup(true);" style="background: #18181b; border: 1px solid #3f3f46; color: #ef4444; padding: 10px 14px; border-radius: 25px; font-weight: 700; font-size: 0.82rem; cursor: pointer;">
-            Mute
+          <button onclick="window.raksha.pauseAudio()" class="arun-ctrl-btn pause" title="Pause Audio">
+            ⏸️ Pause
+          </button>
+        ` : isPaused ? `
+          <button onclick="window.raksha.resumeAudio()" class="arun-ctrl-btn resume" title="Resume Audio">
+            ▶️ Resume
           </button>
         ` : ''}
+        ${state.audioPlayer.text ? `
+          <button onclick="window.raksha.restartAudio()" class="arun-ctrl-btn restart" title="Restart Audio">
+            🔄 Restart
+          </button>
+        ` : ''}
+        ${(isSpeaking || isPaused) ? `
+          <button onclick="window.raksha.stopAudio()" class="arun-ctrl-btn stop" title="Stop Audio">
+            ⏹️ Stop
+          </button>
+        ` : ''}
+        <button onclick="window.raksha.toggleArunVoiceModeSession()" class="arun-ctrl-btn ${isListening ? 'listening' : 'talk'}" title="Voice Input">
+          ${isListening ? '🛑 Stop Listening' : '🎙️ Tap to Speak'}
+        </button>
       </div>
     </div>
   `;
 }
 
 function renderArunChatView() {
+  const isAudioActive = state.audioPlayer.status === 'playing' || state.audioPlayer.status === 'paused';
+  const isPlaying = state.audioPlayer.status === 'playing';
+
   return `
+    <!-- Active Audio Player Strip (if sound is playing or paused) -->
+    ${isAudioActive ? `
+      <div class="arun-chat-audio-strip">
+        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; flex: 1;">
+          <span style="font-size: 1.1rem; animation: ${isPlaying ? 'pulse-sos 1.2s infinite' : 'none'};">
+            ${state.audioPlayer.type === 'siren' ? '🚨' : '🎙️'}
+          </span>
+          <div style="font-size: 0.76rem; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <strong>${state.audioPlayer.status === 'playing' ? 'Playing' : 'Paused'}:</strong> ${state.audioPlayer.label || 'Audio message'}
+          </div>
+        </div>
+        <div style="display: flex; gap: 4px; flex-shrink: 0;">
+          ${isPlaying ? `
+            <button onclick="window.raksha.pauseAudio()" class="arun-mini-audio-btn" title="Pause">⏸️</button>
+          ` : `
+            <button onclick="window.raksha.resumeAudio()" class="arun-mini-audio-btn" title="Resume">▶️</button>
+          `}
+          <button onclick="window.raksha.restartAudio()" class="arun-mini-audio-btn" title="Restart">🔄</button>
+          <button onclick="window.raksha.stopAudio()" class="arun-mini-audio-btn" style="color: #ef4444;" title="Stop">⏹️</button>
+        </div>
+      </div>
+    ` : ''}
+
     <!-- Chat Messages Stream -->
     <div id="arun-popup-chat-history" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #090d16;">
       ${renderArunChatBubbles()}
+    </div>
+
+    <!-- Suggestion Action Chips -->
+    <div class="arun-chips-row no-scrollbar">
+      ${getArunSuggestionChips().map(c => `
+        <button class="arun-suggestion-chip" onclick="window.raksha.selectSuggestionChip('${c.query.replace(/'/g, "\\'")}')">
+          ${c.label}
+        </button>
+      `).join('')}
     </div>
 
     <!-- Bottom Input Bar -->
@@ -2903,9 +3222,15 @@ function renderArunChatBubbles() {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.68rem; color: ${isUser ? '#bfdbfe' : '#94a3b8'}; border-top: ${!isUser ? '1px solid rgba(255,255,255,0.1)' : 'none'}; padding-top: ${!isUser ? '4px' : '0'};">
             <span>${msg.timestamp}</span>
             ${!isUser ? `
-              <div style="display: flex; gap: 6px;">
-                <button onclick="window.raksha.speak('${msg.text.replace(/'/g, "\\'").replace(/\n/g, ' ')}')" title="Listen" style="background: transparent; border: none; color: #38bdf8; cursor: pointer; font-size: 0.8rem;">
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button onclick="window.raksha.speak('${msg.text.replace(/'/g, "\\'").replace(/\n/g, ' ')}')" title="Listen / Speak" style="background: transparent; border: none; color: #38bdf8; cursor: pointer; font-size: 0.8rem;">
                   🔊
+                </button>
+                <button onclick="window.raksha.pauseAudio()" title="Pause" style="background: transparent; border: none; color: #fbbf24; cursor: pointer; font-size: 0.8rem;">
+                  ⏸️
+                </button>
+                <button onclick="window.raksha.stopAudio()" title="Stop" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.8rem;">
+                  ⏹️
                 </button>
                 <button onclick="navigator.clipboard.writeText('${msg.text.replace(/'/g, "\\'").replace(/\n/g, ' ')}'); alert('Copied!');" title="Copy" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 0.8rem;">
                   📋
@@ -2932,6 +3257,7 @@ export async function submitArunQuery(overrideText, isVoice = false) {
     text: query,
     timestamp: timeStr
   });
+  state.arunHistory.push({ role: 'user', text: query });
 
   // Check voice commands first
   const voiceCmdResult = processVoiceCommands(query);
@@ -2941,10 +3267,10 @@ export async function submitArunQuery(overrideText, isVoice = false) {
       text: `✅ **Action Executed**: ${voiceCmdResult}`,
       timestamp: timeStr
     });
+    state.arunHistory.push({ role: 'model', text: voiceCmdResult });
     state.arunLiveTranscript = voiceCmdResult;
     if (isVoice || state.arunVoiceMode) {
       playAssistantChime('reply');
-      state.arunVoiceStatus = 'speaking';
       speak(voiceCmdResult);
     }
     toggleArunPopup(true);
@@ -2975,7 +3301,15 @@ export async function submitArunQuery(overrideText, isVoice = false) {
         userDistrict: state.userDistrict,
         persona: state.currentPersona,
         language: state.currentLanguage,
-        apiKey: state.geminiApiKey
+        apiKey: state.geminiApiKey,
+        conversationHistory: state.arunHistory,
+        liveTelemetry: {
+          precipitation1h: state.liveWeather?.precipitation1h ?? 0,
+          tempC: state.liveWeather?.tempC ?? 22,
+          windKmh: state.liveWeather?.windKmh ?? 12,
+          fos: state.fosResult?.fos ?? 1.24,
+          fosStatus: state.fosResult?.status ?? 'MARGINAL'
+        }
       })
     });
     const data = await res.json();
@@ -2983,12 +3317,14 @@ export async function submitArunQuery(overrideText, isVoice = false) {
   } catch (err) {
     if (state.geminiApiKey) {
       try {
+        const contents = [];
+        for (const t of state.arunHistory.slice(-6)) {
+          contents.push({ role: t.role === 'user' ? 'user' : 'model', parts: [{ text: t.text }] });
+        }
         const directRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.geminiApiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `You are arun_safe-ai mountain survival copilot. Answer concisely: ${query}` }] }]
-          })
+          body: JSON.stringify({ contents })
         });
         const dData = await directRes.json();
         reply = dData.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -3006,15 +3342,14 @@ export async function submitArunQuery(overrideText, isVoice = false) {
     text: reply,
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   });
+  state.arunHistory.push({ role: 'model', text: reply });
 
   state.arunLiveTranscript = reply;
 
   // Auto-speak out loud if in voice mode or voice was used!
   if (isVoice || state.arunVoiceMode) {
     playAssistantChime('reply');
-    state.arunVoiceStatus = 'speaking';
-    const spokenText = reply.replace(/[*#\-_]/g, ' ').replace(/\n+/g, '. ').slice(0, 300);
-    speak(spokenText);
+    speak(reply);
   }
 
   toggleArunPopup(true);
@@ -3173,8 +3508,16 @@ window.raksha = {
   triggerEmergencySOS,
   copySOSMessage,
   setLanguage,
-  // Persona & Live Feeds exports
+  // Universal Audio Player exports (Stop, Pause, Resume, Restart)
+  stopAudio,
+  pauseAudio,
+  resumeAudio,
+  restartAudio,
+  updateAudioPlayerUI,
+  // Persona, District & Live Feeds exports
   setPersona,
+  setDistrict,
+  selectSuggestionChip,
   fetchLiveTelemetry,
   openHazardReportModal,
   submitHazardReport,

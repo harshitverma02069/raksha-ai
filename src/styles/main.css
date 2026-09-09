@@ -648,3 +648,326 @@ body, html {
   margin: 10px 0;
 }
 
+/* =================================================================
+   FLOATING ISLAND BOTTOM DOCK (macOS / iOS Inspired Island Pill)
+   ================================================================= */
+.nav-bar {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 620px;
+  z-index: 1200;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(10, 14, 26, 0.88);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 26px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  padding: 6px 8px;
+  gap: 4px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-item {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 18px;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  user-select: none;
+}
+
+.nav-item:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.28), rgba(185, 28, 28, 0.14));
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.nav-item span:first-child {
+  font-size: 1.25rem;
+  line-height: 1;
+  margin-bottom: 2px;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-item.active span:first-child {
+  transform: scale(1.15);
+}
+
+/* =================================================================
+   UNIVERSAL FLOATING AUDIO CONTROLLER BAR (Stop, Pause, Resume, Restart)
+   ================================================================= */
+.floating-audio-bar {
+  position: fixed;
+  top: 66px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 580px;
+  z-index: 1240;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid rgba(239, 68, 68, 0.65);
+  border-radius: 20px;
+  padding: 8px 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(239, 68, 68, 0.35);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  animation: audio-bar-slide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes audio-bar-slide {
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.audio-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.audio-bar-wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.audio-bar-wave span {
+  width: 3.5px;
+  height: 6px;
+  background: #ef4444;
+  border-radius: 2px;
+  transition: height 0.15s;
+}
+
+.audio-bar-wave.active span:nth-child(1) { animation: wave-bar 0.9s infinite ease-in-out; }
+.audio-bar-wave.active span:nth-child(2) { animation: wave-bar 0.7s infinite ease-in-out 0.2s; }
+.audio-bar-wave.active span:nth-child(3) { animation: wave-bar 1.1s infinite ease-in-out 0.4s; }
+.audio-bar-wave.active span:nth-child(4) { animation: wave-bar 0.8s infinite ease-in-out 0.1s; }
+
+@keyframes wave-bar {
+  0%, 100% { height: 6px; }
+  50% { height: 20px; }
+}
+
+.audio-bar-labels {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.audio-bar-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+}
+
+.audio-bar-tag.siren {
+  color: #ef4444;
+}
+
+.audio-bar-title {
+  font-size: 0.78rem;
+  color: #f1f5f9;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-bar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.audio-action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(30, 41, 59, 0.8);
+  color: #f1f5f9;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.audio-action-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+  transform: scale(1.05);
+}
+
+.audio-action-btn.pause {
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.audio-action-btn.resume {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.audio-action-btn.restart {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.audio-action-btn.stop {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.18);
+}
+
+/* =================================================================
+   ARUN_SAFE-AI VOICE & CHAT ENHANCEMENTS
+   ================================================================= */
+.arun-voice-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.arun-ctrl-btn {
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #f1f5f9;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.arun-ctrl-btn:hover {
+  transform: translateY(-1px);
+}
+
+.arun-ctrl-btn.pause {
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.arun-ctrl-btn.resume {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.arun-ctrl-btn.restart {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.arun-ctrl-btn.stop {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.arun-ctrl-btn.talk {
+  background: linear-gradient(135deg, #ef4444, #991b1b);
+  border-color: #f87171;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+}
+
+.arun-ctrl-btn.listening {
+  background: #dc2626;
+  color: #fff;
+  animation: pulse-sos 1.2s infinite;
+}
+
+.arun-chat-audio-strip {
+  background: rgba(30, 41, 59, 0.75);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.arun-mini-audio-btn {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  color: #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.arun-mini-audio-btn:hover {
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.arun-chips-row {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(9, 13, 22, 0.95);
+  border-top: 1px solid #27272a;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.arun-suggestion-chip {
+  background: rgba(24, 24, 27, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.arun-suggestion-chip:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #fff;
+  transform: translateY(-1px);
+}
+

@@ -44,48 +44,67 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 16px;
-      background: linear-gradient(90deg, #0f172a, #1e293b);
-      border-bottom: 1px solid #334155;
-      backdrop-filter: blur(10px);
+      padding: 10px 16px;
+      background: rgba(8, 12, 22, 0.85);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
-    .nav-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 1100;
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%);
       display: flex;
-      justify-content: space-around;
-      background: rgba(15, 23, 42, 0.95);
-      border-top: 1px solid #334155;
-      backdrop-filter: blur(12px);
-      padding: 8px 0;
-    }
-    .nav-item {
-      background: transparent;
-      border: none;
-      color: #94a3b8;
-      display: flex;
-      flex-direction: column;
       align-items: center;
-      font-size: 0.72rem;
+      justify-content: center;
+      font-size: 1.15rem;
+      border: 1.5px solid rgba(248, 113, 113, 0.8);
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    }
+    .brand-title {
+      font-weight: 900;
+      font-size: 1.05rem;
+      letter-spacing: 0.4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-badge {
+      font-size: 0.62rem;
+      background: #dc2626;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+    }
+    .district-dropdown, .lang-dropdown {
+      background: rgba(24, 24, 27, 0.85);
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
       cursor: pointer;
-      flex: 1;
-      transition: all 0.2s ease;
+      outline: none;
+      transition: all 0.15s ease;
     }
-    .nav-item.active {
-      color: #ef4444;
-      font-weight: bold;
+    .district-dropdown:hover, .lang-dropdown:hover {
+      border-color: #ef4444;
+      background: #18181b;
     }
-    .nav-item span {
-      font-size: 1.35rem;
-      margin-bottom: 2px;
-    }
-    .card {
-      background: rgba(30, 41, 59, 0.75);
-      backdrop-filter: blur(8px);
-      border-radius: 12px;
+    .status-dot-pulse {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
+      animation: blink 2s infinite;
+      flex-shrink: 0;
     }
     .loading-screen {
       display: flex;
@@ -93,11 +112,11 @@
       align-items: center;
       justify-content: center;
       height: 100vh;
-      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+      background: radial-gradient(circle at center, #1e1b4b 0%, #060913 70%);
     }
     .pulse-ring {
-      width: 50px;
-      height: 50px;
+      width: 54px;
+      height: 54px;
       border: 3px solid #ef4444;
       border-radius: 50%;
       animation: pulse-sos 1.5s infinite;
@@ -108,38 +127,55 @@
       70% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(220, 38, 38, 0); }
       100% { transform: scale(0.85); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
     }
-    .lang-dropdown {
-      background: #1e293b;
-      color: #e2e8f0;
-      border: 1px solid #475569;
-      border-radius: 6px;
-      padding: 5px 8px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      outline: none;
-    }
   </style>
 </head>
 <body>
   <div id="app-container">
-    <!-- Header -->
+    <!-- Luxury Glassmorphic Header -->
     <header class="header-bar">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <div style="width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #dc2626, #b91c1c); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.1rem; border: 1px solid #f87171;">
-          🛡️
-        </div>
+        <div class="brand-icon">🛡️</div>
         <div>
-          <div style="font-weight: 900; font-size: 1.1rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+          <div class="brand-title">
             <span>रक्षा RAKSHA AI</span>
-            <span style="font-size: 0.65rem; background: #dc2626; color: white; padding: 2px 5px; border-radius: 4px; font-weight: bold;">AP DISASTER AI</span>
+            <span class="brand-badge">AP COGNITIVE CORE</span>
           </div>
-          <div style="font-size: 0.7rem; color: #94a3b8;">Arunachal Pradesh Multi-Modal Survival System</div>
+          <div style="font-size: 0.68rem; color: #94a3b8;">Arunachal Pradesh Multi-Modal Mountain Intelligence</div>
         </div>
       </div>
 
-      <!-- Language Selector & Offline Indicator -->
+      <!-- Quick Selectors: District & Language -->
       <div style="display: flex; align-items: center; gap: 8px;">
-        <select class="lang-dropdown" onchange="window.raksha.setLanguage(this.value)">
+        <select id="district-quick-select" class="district-dropdown" onchange="window.raksha.setDistrict(this.value)" title="Switch Active District">
+          <option value="Papum Pare">📍 Papum Pare (Itanagar)</option>
+          <option value="Tawang">📍 Tawang (Sela Tunnel)</option>
+          <option value="West Kameng">📍 West Kameng (Bomdila)</option>
+          <option value="Bichom">📍 Bichom (Napangphung)</option>
+          <option value="East Kameng">📍 East Kameng (Seppa)</option>
+          <option value="Pakke-Kessang">📍 Pakke-Kessang (Lemmi)</option>
+          <option value="Lower Subansiri">📍 Lower Subansiri (Ziro)</option>
+          <option value="Keyi Panyor">📍 Keyi Panyor (Yachuli)</option>
+          <option value="Kurung Kumey">📍 Kurung Kumey (Koloriang)</option>
+          <option value="Kra Daadi">📍 Kra Daadi (Jamin)</option>
+          <option value="Upper Subansiri">📍 Upper Subansiri (Daporijo)</option>
+          <option value="West Siang">📍 West Siang (Aalo)</option>
+          <option value="Shi-Yomi">📍 Shi-Yomi (Mechuka)</option>
+          <option value="Siang">📍 Siang (Boleng)</option>
+          <option value="Upper Siang">📍 Upper Siang (Tuting)</option>
+          <option value="East Siang">📍 East Siang (Pasighat)</option>
+          <option value="Leparada">📍 Leparada (Basar)</option>
+          <option value="Lower Siang">📍 Lower Siang (Likabali)</option>
+          <option value="Dibang Valley">📍 Dibang Valley (Anini)</option>
+          <option value="Lower Dibang Valley">📍 Lower Dibang Valley (Roing)</option>
+          <option value="Lohit">📍 Lohit (Tezu)</option>
+          <option value="Anjaw">📍 Anjaw (Hawai/Walong)</option>
+          <option value="Namsai">📍 Namsai</option>
+          <option value="Changlang">📍 Changlang</option>
+          <option value="Tirap">📍 Tirap (Khonsa)</option>
+          <option value="Longding">📍 Longding</option>
+        </select>
+
+        <select class="lang-dropdown" onchange="window.raksha.setLanguage(this.value)" title="Select Language">
           <option value="en">🌐 English</option>
           <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
           <option value="ny">🏔️ Nyishi</option>
@@ -156,7 +192,7 @@
           <option value="sin">🏔️ Singpho</option>
           <option value="she">🏔️ Sherdukpen</option>
         </select>
-        <div title="System Online & Telemetry Active" style="width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e;"></div>
+        <div class="status-dot-pulse" title="System Online & Telemetry Active"></div>
       </div>
     </header>
 
@@ -187,7 +223,7 @@
     </div>
 
     <!-- Main Dynamic Content Area -->
-    <main id="main-content" style="flex: 1; padding-bottom: 75px; overflow-y: auto;">
+    <main id="main-content" style="flex: 1; padding-bottom: 95px; overflow-y: auto;">
       <div class="loading-screen">
         <div class="pulse-ring"></div>
         <h2 style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(90deg, #ef4444, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
@@ -197,28 +233,28 @@
       </div>
     </main>
 
-    <!-- Bottom Navigation Bar (6 Pillars of Survival) -->
+    <!-- Floating Island Bottom Navigation Dock (6 Pillars of Survival) -->
     <nav class="nav-bar">
-      <button class="nav-item active" data-tab="dashboard" onclick="window.raksha.switchTab('dashboard')">
+      <button class="nav-item active" data-tab="dashboard" onclick="window.raksha.switchTab('dashboard')" title="Dashboard">
         <span>📊</span><span class="nav-label">Dashboard</span>
       </button>
-      <button class="nav-item" data-tab="map" onclick="window.raksha.switchTab('map')">
+      <button class="nav-item" data-tab="map" onclick="window.raksha.switchTab('map')" title="Live Map">
         <span>🗺️</span><span class="nav-label">Live Map</span>
       </button>
-      <button class="nav-item" data-tab="sim" onclick="window.raksha.switchTab('sim')">
-        <span style="color: #c084fc;">🎬</span><span class="nav-label">Escape Model</span>
+      <button class="nav-item" data-tab="sim" onclick="window.raksha.switchTab('sim')" title="3D Escape Model">
+        <span style="color: #c084fc;">🎬</span><span class="nav-label">3D Escape</span>
       </button>
-      <button class="nav-item" data-tab="evacuate" onclick="window.raksha.switchTab('evacuate')">
+      <button class="nav-item" data-tab="evacuate" onclick="window.raksha.switchTab('evacuate')" title="Escape Navigation">
         <span>🛣️</span><span class="nav-label">Escape Nav</span>
       </button>
-      <button class="nav-item" data-tab="ai" onclick="window.raksha.switchTab('ai')">
+      <button class="nav-item" data-tab="ai" onclick="window.raksha.switchTab('ai')" title="Survival AI">
         <span>🤖</span><span class="nav-label">Survival AI</span>
       </button>
-      <button class="nav-item" data-tab="sos" onclick="window.raksha.switchTab('sos')">
+      <button class="nav-item" data-tab="sos" onclick="window.raksha.switchTab('sos')" title="SOS Beacon">
         <span style="color: #ef4444;">🆘</span><span class="nav-label">SOS Beacon</span>
       </button>
-      <button class="nav-item" data-tab="guide" onclick="window.raksha.switchTab('guide')">
-        <span>📖</span><span class="nav-label">Guide</span>
+      <button class="nav-item" data-tab="guide" onclick="window.raksha.switchTab('guide')" title="Survival Manual">
+        <span>📖</span><span class="nav-label">Manual</span>
       </button>
     </nav>
   </div>
