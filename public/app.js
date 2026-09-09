@@ -22,7 +22,9 @@ export const state = {
   currentPersona: localStorage.getItem('raksha_persona') || 'resident', // 'resident' | 'tourist' | 'monitor'
   geminiApiKey: localStorage.getItem('raksha_gemini_key') || '',
   geminiKeyValidated: false,
-  geminiModel: 'gemini-1.5-flash',
+  geminiModel: localStorage.getItem('raksha_gemini_model') || 'gemini-2.0-flash',
+  currentBasemap: localStorage.getItem('raksha_basemap') || 'dark',
+  activeTileLayers: [],
   isRecordingVoice: false,
   speechRecognition: null,
   manualSearchQuery: '',
@@ -1471,34 +1473,118 @@ export function speakCurrentSimStep() {
 }
 
 // ==========================================
-// 3. GIS SURVIVAL MAP VIEW
+// 3. GIS SURVIVAL MAP VIEW & BASEMAP ENGINE
 // ==========================================
+export const BASEMAP_TILES = {
+  dark: {
+    name: 'Dark Tactical',
+    layers: [
+      {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        options: { maxZoom: 16, subdomains: 'abcd', attribution: 'Esri, DeLorme, HERE' }
+      },
+      {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        options: { maxZoom: 16 }
+      }
+    ]
+  },
+  satellite: {
+    name: 'Satellite Aerial 3D',
+    layers: [
+      {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        options: { maxZoom: 18, attribution: 'Esri, Maxar, Earthstar Geographics' }
+      },
+      {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        options: { maxZoom: 18 }
+      }
+    ]
+  },
+  topo: {
+    name: 'Mountain Topo Relief',
+    layers: [
+      {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+        options: { maxZoom: 18, attribution: 'Esri, USGS, NOAA' }
+      }
+    ]
+  },
+  osm: {
+    name: 'OpenStreetMap Standard',
+    layers: [
+      {
+        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options: { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }
+      }
+    ]
+  }
+};
+
+export function switchBasemap(type) {
+  const chosen = BASEMAP_TILES[type] ? type : 'dark';
+  state.currentBasemap = chosen;
+  localStorage.setItem('raksha_basemap', chosen);
+
+  if (!state.map || !window.L) return;
+
+  if (Array.isArray(state.activeTileLayers)) {
+    state.activeTileLayers.forEach((layer) => {
+      try { state.map.removeLayer(layer); } catch (e) {}
+    });
+  }
+  state.activeTileLayers = [];
+
+  const cfg = BASEMAP_TILES[chosen];
+  cfg.layers.forEach((l) => {
+    const tileLayer = L.tileLayer(l.url, l.options || {}).addTo(state.map);
+    tileLayer.bringToBack();
+    state.activeTileLayers.push(tileLayer);
+  });
+}
+
 function renderMapView() {
   return `
     <div style="position: relative; width: 100%; height: calc(100vh - 135px);">
-      <!-- Layer Toggle Floating Toolbar -->
-      <div style="position: absolute; top: 12px; right: 12px; z-index: 1000; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); padding: 8px; border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 6px; font-size: 0.75rem;">
-        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #f87171;">
-          <input type="checkbox" id="layer-hazard" checked onchange="window.raksha.toggleMapLayer('hazard')" /> ⚠️ Landslide/Flood Zones
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #38bdf8;">
-          <input type="checkbox" id="layer-transport" checked onchange="window.raksha.toggleMapLayer('transport')" /> 🛣️ Highways & Rail
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fbbf24;">
-          <input type="checkbox" id="layer-air" checked onchange="window.raksha.toggleMapLayer('air')" /> ✈️/🚁 ALGs & Helipads
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #4ade80;">
-          <input type="checkbox" id="layer-safe" checked onchange="window.raksha.toggleMapLayer('safeZones')" /> 🟢 Validated Safe Zones
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #c084fc;">
-          <input type="checkbox" id="layer-emergency" checked onchange="window.raksha.toggleMapLayer('emergency')" /> 🏥 NDRF & Hospitals
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #f97316;">
-          <input type="checkbox" id="layer-seismic" checked onchange="window.raksha.toggleMapLayer('seismic')" /> ⚡ Live Quakes (USGS)
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #ec4899;">
-          <input type="checkbox" id="layer-communityReports" checked onchange="window.raksha.toggleMapLayer('communityReports')" /> 📢 Live Citizen Reports
-        </label>
+      <!-- Layer Toggle & Basemap Floating Toolbar -->
+      <div style="position: absolute; top: 12px; right: 12px; z-index: 1000; background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(12px); padding: 10px; border-radius: 10px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 8px; font-size: 0.75rem; box-shadow: 0 8px 24px rgba(0,0,0,0.6); max-width: 215px;">
+        <!-- Basemap Selector -->
+        <div style="padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+          <div style="font-weight: 800; color: #38bdf8; font-size: 0.68rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;">
+            <span>🗺️</span> Basemap Terrain
+          </div>
+          <select id="map-basemap-select" onchange="window.raksha.switchBasemap(this.value)" style="width: 100%; background: #1e293b; color: #f1f5f9; border: 1px solid #475569; border-radius: 6px; padding: 4px 6px; font-size: 0.72rem; outline: none; cursor: pointer; font-weight: 600;">
+            <option value="dark" ${state.currentBasemap === 'dark' ? 'selected' : ''}>🌙 Dark Tactical (ESRI Zero-WM)</option>
+            <option value="satellite" ${state.currentBasemap === 'satellite' ? 'selected' : ''}>🛰️ Satellite Aerial 3D</option>
+            <option value="topo" ${state.currentBasemap === 'topo' ? 'selected' : ''}>🏔️ Mountain Topo Relief</option>
+            <option value="osm" ${state.currentBasemap === 'osm' ? 'selected' : ''}>🗺️ OpenStreetMap Standard</option>
+          </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #f87171;">
+            <input type="checkbox" id="layer-hazard" checked onchange="window.raksha.toggleMapLayer('hazard')" /> ⚠️ Landslide/Flood
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #38bdf8;">
+            <input type="checkbox" id="layer-transport" checked onchange="window.raksha.toggleMapLayer('transport')" /> 🛣️ Highways & Rail
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fbbf24;">
+            <input type="checkbox" id="layer-air" checked onchange="window.raksha.toggleMapLayer('air')" /> ✈️/🚁 ALGs & Helipads
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #4ade80;">
+            <input type="checkbox" id="layer-safe" checked onchange="window.raksha.toggleMapLayer('safeZones')" /> 🟢 Safe Zones
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #c084fc;">
+            <input type="checkbox" id="layer-emergency" checked onchange="window.raksha.toggleMapLayer('emergency')" /> 🏥 NDRF & Hospitals
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #f97316;">
+            <input type="checkbox" id="layer-seismic" checked onchange="window.raksha.toggleMapLayer('seismic')" /> ⚡ Live Quakes (USGS)
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #ec4899;">
+            <input type="checkbox" id="layer-communityReports" checked onchange="window.raksha.toggleMapLayer('communityReports')" /> 📢 Citizen Reports
+          </label>
+        </div>
       </div>
 
       <button onclick="window.raksha.recenterUserLocation()" style="position: absolute; bottom: 24px; right: 12px; z-index: 1000; background: #2563eb; color: white; border: none; border-radius: 50%; width: 48px; height: 48px; font-size: 1.4rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
@@ -1527,12 +1613,8 @@ export function initLeafletMap() {
   });
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 18,
-    subdomains: 'abcd'
-  }).addTo(map);
-
   state.map = map;
+  switchBasemap(state.currentBasemap || 'dark');
   state.layerGroups = {
     hazard: L.layerGroup().addTo(map),
     transport: L.layerGroup().addTo(map),
@@ -2095,7 +2177,7 @@ function renderAICopilotView() {
                 Gemini Rakshak AI
               </h2>
               ${isCloud
-                ? '<span class="badge-gemini-cloud">✨ Gemini 1.5 Flash</span>'
+                ? `<span class="badge-gemini-cloud">⚡ ${state.geminiModel === 'gemini-2.0-flash' ? 'Gemini 2.0 Flash' : (state.geminiModel === 'gemini-1.5-pro' ? 'Gemini 1.5 Pro' : state.geminiModel)}</span>`
                 : '<span class="badge-offline-neural">⚡ Local Neural Engine</span>'
               }
             </div>
@@ -2107,7 +2189,7 @@ function renderAICopilotView() {
 
         <div style="display: flex; gap: 6px; align-items: center;">
           <button onclick="window.raksha.openGeminiKeyModal()" style="background: rgba(30, 41, 59, 0.9); border: 1px solid #475569; color: #cbd5e1; padding: 6px 12px; border-radius: 8px; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 600;">
-            <span>🔑</span> ${isCloud ? 'Gemini Key Configured' : 'Add Free Gemini Key'}
+            <span>🔑</span> ${isCloud ? `⚡ ${state.geminiModel.replace('gemini-', '').toUpperCase()} Active` : '✨ Connect Gemini 2.0'}
           </button>
           <button onclick="window.raksha.clearChatHistory()" title="Clear conversation" style="background: rgba(30, 41, 59, 0.9); border: 1px solid #475569; color: #94a3b8; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; cursor: pointer;">
             🗑️
@@ -2149,50 +2231,167 @@ function bindAICopilotEvents() {
   }
 }
 
+// Check Server Gemini Key on boot
+export async function checkServerGeminiKey() {
+  try {
+    const res = await fetch('/api/ai/key-status');
+    const data = await res.json().catch(() => ({}));
+    if (data.configured && data.hasEnvKey) {
+      if (!state.geminiApiKey) {
+        state.geminiApiKey = 'SERVER_ENV_ACTIVE';
+      }
+      state.geminiKeyValidated = true;
+      if (data.model) state.geminiModel = data.model;
+    }
+  } catch (e) {}
+  updateGeminiStatusUI();
+}
+
+// Update Header & UI status badges
+export function updateGeminiStatusUI() {
+  const btn = document.getElementById('header-gemini-btn');
+  const txt = document.getElementById('header-gemini-text');
+  const isCloud = Boolean(state.geminiApiKey);
+
+  if (btn && txt) {
+    if (isCloud) {
+      btn.className = 'gemini-header-pill active';
+      let label = '⚡ Gemini 2.0 Active';
+      if (state.geminiModel && state.geminiModel.includes('1.5-pro')) label = '🧠 Gemini 1.5 Pro';
+      else if (state.geminiModel && state.geminiModel.includes('1.5-flash')) label = '✨ Gemini 1.5 Flash';
+      txt.textContent = label;
+      btn.title = `Google Gemini Active (${state.geminiModel}) — Click to configure`;
+    } else {
+      btn.className = 'gemini-header-pill';
+      txt.textContent = 'Connect Gemini 2.0';
+      btn.title = 'Connect Google Gemini 2.0 AI Key (Free from Google AI Studio)';
+    }
+  }
+}
+
+// Paste Key from Clipboard
+export async function pasteKeyFromClipboard() {
+  const input = document.getElementById('modal-gemini-key-input');
+  const statusEl = document.getElementById('modal-gemini-status');
+  if (!input) return;
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      const clipText = await navigator.clipboard.readText();
+      if (clipText && clipText.trim()) {
+        input.value = clipText.trim();
+        if (statusEl) {
+          statusEl.innerHTML = '<span style="color: #38bdf8;">📋 Key pasted from clipboard! Click "Verify & Connect".</span>';
+        }
+        return;
+      }
+    }
+    input.focus();
+    if (statusEl) {
+      statusEl.innerHTML = '<span style="color: #facc15;">💡 Press Cmd+V or Ctrl+V in the box to paste.</span>';
+    }
+  } catch (err) {
+    input.focus();
+    if (statusEl) {
+      statusEl.innerHTML = '<span style="color: #facc15;">💡 Clipboard permission blocked. Please paste directly into the box.</span>';
+    }
+  }
+}
+
 // Open Gemini Key Modal
 export function openGeminiKeyModal() {
   const existing = document.getElementById('gemini-key-modal');
   if (existing) existing.remove();
 
+  const isCloud = Boolean(state.geminiApiKey);
+
   const modal = document.createElement('div');
   modal.id = 'gemini-key-modal';
-  modal.style.cssText = 'position: fixed; inset: 0; z-index: 2500; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(10px);';
+  modal.style.cssText = 'position: fixed; inset: 0; z-index: 2500; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(12px);';
   modal.innerHTML = `
-    <div style="background: #0f172a; border: 1px solid #475569; border-radius: 14px; max-width: 520px; width: 100%; padding: 22px; color: #e2e8f0; box-shadow: 0 16px 40px rgba(0,0,0,0.85);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <h3 style="margin: 0; color: #38bdf8; display: flex; align-items: center; gap: 8px; font-size: 1.15rem;">
-          <span>🔑</span> Configure Google Gemini AI Key
-        </h3>
-        <button onclick="document.getElementById('gemini-key-modal').remove()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;">&times;</button>
+    <div style="background: #090d16; border: 1.5px solid #3b82f6; border-radius: 16px; max-width: 540px; width: 100%; padding: 24px; color: #e2e8f0; box-shadow: 0 20px 50px rgba(0,0,0,0.9), 0 0 30px rgba(59, 130, 246, 0.2);">
+      
+      <!-- Top Title & Badge -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #2563eb, #9333ea); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; box-shadow: 0 0 12px rgba(37, 99, 235, 0.5);">
+              🚀
+            </div>
+            <h3 style="margin: 0; color: #ffffff; font-size: 1.2rem; font-weight: 800; letter-spacing: 0.2px;">
+              Google Gemini 2.0 AI Core
+            </h3>
+          </div>
+          <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 4px;">
+            Next-Gen Multimodal Reasoning Engine for Arunachal Disaster Survival
+          </div>
+        </div>
+        <button onclick="document.getElementById('gemini-key-modal').remove()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer; padding: 2px 6px; line-height: 1;">&times;</button>
       </div>
 
-      <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.45; margin-bottom: 14px;">
-        Connect Google's <strong>Gemini 1.5 Flash</strong> model for real-time mountain survival reasoning, multi-lingual dialogue, and high-altitude emergency triage.
+      <!-- Current Engine Status Pill -->
+      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 8px 12px; margin-bottom: 14px;">
+        <div style="font-size: 0.75rem; color: #94a3b8;">Current AI Engine:</div>
+        <div style="font-size: 0.78rem; font-weight: 800; color: ${isCloud ? '#4ade80' : '#fbbf24'}; display: flex; align-items: center; gap: 6px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: ${isCloud ? '#4ade80' : '#fbbf24'}; box-shadow: 0 0 8px ${isCloud ? '#4ade80' : '#fbbf24'};"></span>
+          ${isCloud ? `Online: ${state.geminiModel}` : 'Offline Local Arunachal Neural Engine'}
+        </div>
+      </div>
+
+      <p style="font-size: 0.84rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px;">
+        Connect Google's flagship <strong>Gemini 2.0 Flash</strong> for hyper-speed mountain survival logic, geotechnical slope stability (FoS) analysis, and multi-lingual voice dialogue.
       </p>
 
-      <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.8rem; color: #bae6fd;">
-        💡 <strong>Get a 100% Free API Key:</strong><br>
-        1. Open <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #38bdf8; font-weight: bold; text-decoration: underline;">Google AI Studio (aistudio.google.com)</a>.<br>
-        2. Click <em>"Create API Key"</em> (No credit card needed).<br>
-        3. Paste the key below and click <em>"Verify & Save Key"</em>.
+      <!-- Google AI Studio Direct Link Callout -->
+      <div style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(147, 51, 234, 0.15)); border: 1px solid rgba(96, 165, 250, 0.4); border-radius: 10px; padding: 12px; margin-bottom: 14px; font-size: 0.8rem; color: #bfdbfe;">
+        <div style="font-weight: 800; margin-bottom: 4px; color: #ffffff; display: flex; align-items: center; gap: 6px;">
+          <span>💡</span> Get a 100% Free API Key in 30 Seconds:
+        </div>
+        <div style="line-height: 1.5; color: #cbd5e1;">
+          1. Open <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #60a5fa; font-weight: bold; text-decoration: underline;">Google AI Studio (aistudio.google.com)</a>.<br>
+          2. Click <strong>"Create API Key"</strong> (No credit card needed &bull; Free tier active).<br>
+          3. Click the <strong>"📋 Paste"</strong> button below and save!
+        </div>
       </div>
 
-      <div style="margin-bottom: 14px;">
-        <label style="color: #cbd5e1; font-size: 0.8rem; display: block; margin-bottom: 6px; font-weight: 600;">GEMINI API KEY</label>
-        <input type="password" id="modal-gemini-key-input" value="${state.geminiApiKey || ''}" placeholder="AIzaSy..."
-               style="width: 100%; padding: 11px 14px; background: #1e293b; border: 1px solid #475569; border-radius: 8px; color: white; font-size: 0.9rem; font-family: monospace;" />
+      <!-- Model Selection Dropdown -->
+      <div style="margin-bottom: 12px;">
+        <label style="color: #94a3b8; font-size: 0.74rem; display: block; margin-bottom: 5px; font-weight: 700; text-transform: uppercase;">PREFERRED GOOGLE MODEL</label>
+        <select id="modal-gemini-model-select" style="width: 100%; padding: 9px 12px; background: #1e293b; border: 1px solid #475569; border-radius: 8px; color: #ffffff; font-size: 0.84rem; outline: none; cursor: pointer; font-weight: 600;">
+          <option value="gemini-2.0-flash" ${state.geminiModel === 'gemini-2.0-flash' ? 'selected' : ''}>🚀 Gemini 2.0 Flash (Recommended — Fastest & Smartest)</option>
+          <option value="gemini-1.5-pro" ${state.geminiModel === 'gemini-1.5-pro' ? 'selected' : ''}>🧠 Gemini 1.5 Pro (Deep Complex Reasoning)</option>
+          <option value="gemini-1.5-flash" ${state.geminiModel === 'gemini-1.5-flash' ? 'selected' : ''}>⚡ Gemini 1.5 Flash (Ultra Lightweight)</option>
+        </select>
       </div>
 
-      <div id="modal-gemini-status" style="font-size: 0.8rem; margin-bottom: 14px; min-height: 20px;"></div>
+      <!-- Key Input with Paste Button -->
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+          <label style="color: #94a3b8; font-size: 0.74rem; font-weight: 700; text-transform: uppercase;">GEMINI API KEY</label>
+          <button onclick="window.raksha.pasteKeyFromClipboard()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93c5fd; font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+            📋 Paste from Clipboard
+          </button>
+        </div>
+        <div style="position: relative;">
+          <input type="password" id="modal-gemini-key-input" value="${state.geminiApiKey === 'SERVER_ENV_ACTIVE' ? '' : (state.geminiApiKey || '')}" placeholder="AIzaSy..."
+                 style="width: 100%; padding: 11px 40px 11px 14px; background: #1e293b; border: 1px solid #475569; border-radius: 8px; color: white; font-size: 0.88rem; font-family: monospace;" />
+          <button type="button" onclick="const i = document.getElementById('modal-gemini-key-input'); i.type = i.type === 'password' ? 'text' : 'password';" title="Toggle Visibility" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem;">
+            👁️
+          </button>
+        </div>
+      </div>
 
+      <div id="modal-gemini-status" style="font-size: 0.8rem; margin-bottom: 14px; min-height: 22px;"></div>
+
+      <!-- Actions Buttons -->
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button id="modal-verify-btn" onclick="window.raksha.validateAndSaveGeminiKey()" style="flex: 2; min-width: 140px; padding: 11px; background: linear-gradient(90deg, #2563eb, #1d4ed8); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-          <span>✨</span> Verify & Save Key
+        <button id="modal-verify-btn" onclick="window.raksha.validateAndSaveGeminiKey()" style="flex: 2; min-width: 150px; padding: 12px; background: linear-gradient(90deg, #2563eb, #7c3aed); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
+          <span>✨</span> Verify & Connect Gemini 2.0
         </button>
-        <button onclick="window.raksha.removeGeminiKey()" style="flex: 1; padding: 11px; background: #334155; color: #cbd5e1; border: none; border-radius: 8px; font-size: 0.82rem; cursor: pointer;">
-          Use Local Engine
+        <button onclick="window.raksha.removeGeminiKey()" style="flex: 1; min-width: 110px; padding: 12px; background: #1e293b; color: #cbd5e1; border: 1px solid #475569; border-radius: 8px; font-size: 0.8rem; cursor: pointer;">
+          Offline Mode
         </button>
-        <button onclick="document.getElementById('gemini-key-modal').remove()" style="padding: 11px 16px; background: transparent; border: 1px solid #475569; color: #94a3b8; border-radius: 8px; font-size: 0.82rem; cursor: pointer;">
+        <button onclick="document.getElementById('gemini-key-modal').remove()" style="padding: 12px 16px; background: transparent; border: 1px solid #334155; color: #94a3b8; border-radius: 8px; font-size: 0.8rem; cursor: pointer;">
           Close
         </button>
       </div>
@@ -2204,20 +2403,24 @@ export function openGeminiKeyModal() {
 // Validate & Save Gemini Key
 export async function validateAndSaveGeminiKey() {
   const input = document.getElementById('modal-gemini-key-input');
+  const modelSelect = document.getElementById('modal-gemini-model-select');
   const statusEl = document.getElementById('modal-gemini-status');
   const btn = document.getElementById('modal-verify-btn');
   if (!input || !statusEl) return;
 
   const key = input.value.trim();
+  const selectedModel = modelSelect ? modelSelect.value : 'gemini-2.0-flash';
+
   if (!key) {
-    statusEl.innerHTML = '<span style="color: #f87171;">⚠️ Please enter an API key.</span>';
+    statusEl.innerHTML = '<span style="color: #f87171;">⚠️ Please paste or enter an API key from Google AI Studio.</span>';
     return;
   }
 
-  if (btn) btn.innerHTML = 'Testing key...';
+  if (btn) btn.innerHTML = 'Testing key with Gemini 2.0...';
   statusEl.innerHTML = '<span style="color: #38bdf8;">🔄 Validating key with Google AI Studio...</span>';
 
   let isValid = false;
+  let activeModel = selectedModel;
   let errorMsg = '';
 
   // 1. Try server-side validation endpoint
@@ -2230,6 +2433,7 @@ export async function validateAndSaveGeminiKey() {
     const data = await res.json().catch(() => ({}));
     if (data.valid) {
       isValid = true;
+      if (data.model) activeModel = data.model;
     } else {
       errorMsg = data.error || '';
     }
@@ -2237,7 +2441,7 @@ export async function validateAndSaveGeminiKey() {
     errorMsg = err.message || '';
   }
 
-  // 2. Direct browser fallback using Google ModelService (never hardcodes model name)
+  // 2. Direct browser fallback using Google ModelService
   if (!isValid && key.startsWith('AIza')) {
     try {
       const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
@@ -2248,16 +2452,16 @@ export async function validateAndSaveGeminiKey() {
         const supported = modelsData.models
           .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
           .map(m => m.name.replace('models/', ''));
-        state.geminiModel = supported.find(m => m.includes('2.0-flash'))
-          || supported.find(m => m.includes('1.5-flash-latest'))
-          || supported.find(m => m.includes('1.5-flash'))
+        activeModel = supported.find(m => m === selectedModel)
+          || supported.find(m => m.includes('2.0-flash'))
+          || supported.find(m => m.includes('1.5-pro'))
           || supported[0]
-          || 'gemini-1.5-flash-latest';
+          || selectedModel;
       } else if (modelsData.error?.message) {
         errorMsg = modelsData.error.message;
       }
     } catch (browserErr) {
-      if (key.length >= 25) {
+      if (key.length >= 25 && key.startsWith('AIza')) {
         isValid = true;
         errorMsg = '';
       }
@@ -2267,16 +2471,20 @@ export async function validateAndSaveGeminiKey() {
   if (isValid) {
     state.geminiApiKey = key;
     state.geminiKeyValidated = true;
+    state.geminiModel = activeModel;
     localStorage.setItem('raksha_gemini_key', key);
-    
-    // Also persist to server .env
+    localStorage.setItem('raksha_gemini_model', activeModel);
+
+    // Persist to server .env
     fetch('/api/ai/save-key', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey: key })
     }).catch(() => {});
 
-    statusEl.innerHTML = '<span style="color: #4ade80; font-weight: bold;">✅ Google Gemini 1.5 Flash Connected & Verified!</span>';
+    updateGeminiStatusUI();
+
+    statusEl.innerHTML = `<span style="color: #4ade80; font-weight: bold;">✅ Google Gemini Connected! Active Model: ${activeModel}</span>`;
     setTimeout(() => {
       document.getElementById('gemini-key-modal')?.remove();
       renderActiveTab();
@@ -2285,16 +2493,17 @@ export async function validateAndSaveGeminiKey() {
       }
     }, 1100);
   } else {
-    statusEl.innerHTML = `<span style="color: #f87171;">❌ ${errorMsg || 'Key validation failed. Please check your key from Google AI Studio.'}</span>`;
+    statusEl.innerHTML = `<span style="color: #f87171;">❌ ${errorMsg || 'Invalid Google API Key. Please verify in Google AI Studio.'}</span>`;
   }
 
-  if (btn) btn.innerHTML = '<span>✨</span> Verify & Save Key';
+  if (btn) btn.innerHTML = '<span>✨</span> Verify & Connect Gemini 2.0';
 }
 
 export function removeGeminiKey() {
   state.geminiApiKey = '';
   state.geminiKeyValidated = false;
   localStorage.removeItem('raksha_gemini_key');
+  updateGeminiStatusUI();
   document.getElementById('gemini-key-modal')?.remove();
   alert('Switched to Local High-Precision Arunachal Neural Survival Engine.');
   renderActiveTab();
@@ -3016,7 +3225,7 @@ export function toggleArunPopup(force) {
             </span>
           </div>
           <div style="font-size: 0.7rem; color: #94a3b8;">
-            ${isCloud ? '✨ Gemini 1.5 Flash' : '⚡ Local Neural'} &bull; ${state.userDistrict}
+            ${isCloud ? (state.geminiModel.includes('2.0') ? '⚡ Gemini 2.0 Flash' : (state.geminiModel.includes('1.5-pro') ? '🧠 Gemini 1.5 Pro' : '✨ Gemini Active')) : '⚡ Local Neural'} &bull; ${state.userDistrict}
           </div>
         </div>
       </div>
@@ -3494,11 +3703,15 @@ window.raksha = {
   planRouteTo,
   planRouteToCoords,
   refreshGPS,
+  switchBasemap,
   // Gemini AI Assistant exports
   openGeminiKeyModal,
   promptGeminiKey: openGeminiKeyModal,
   validateAndSaveGeminiKey,
   removeGeminiKey,
+  pasteKeyFromClipboard,
+  updateGeminiStatusUI,
+  checkServerGeminiKey,
   toggleVoiceInput,
   clearChatHistory,
   copyChatText,
@@ -3550,6 +3763,7 @@ window.raksha = {
 // Application Bootloader
 window.addEventListener('DOMContentLoaded', () => {
   initGeolocation();
+  checkServerGeminiKey();
   renderActiveTab();
   initArunSafeWidget();
   fetchLiveTelemetry();

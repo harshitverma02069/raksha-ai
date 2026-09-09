@@ -1,4 +1,5 @@
 // Automated Verification Suite for RAKSHA AI
+import fs from 'fs';
 import { LandslidePredictor } from './src/core/landslide-predictor.js';
 import { RiskAssessor } from './src/core/risk-assessor.js';
 import { EvacuationRouter } from './src/core/evacuation-router.js';
@@ -236,10 +237,11 @@ async function runAsyncTests() {
     const monitorData = await aiMonitor.json();
     assert(monitorData.response.includes('STATEWIDE') || monitorData.response.includes('NH-13'), 'AI Copilot provides multi-district situation report for monitors');
 
-    // 8i. Gemini API Key Status Endpoint
+    // 8i. Gemini API Key Status Endpoint & Model Prioritization
     const keyStatusRes = await fetch('http://localhost:3000/api/ai/key-status');
     const keyStatusData = await keyStatusRes.json();
     assert(keyStatusData.success && typeof keyStatusData.hasEnvKey === 'boolean', 'API /api/ai/key-status responds with valid configuration status');
+    assert(keyStatusData.model && keyStatusData.model.includes('gemini-2.0'), 'Google Gemini engine is prioritized to next-gen Gemini 2.0 Flash');
 
     // 8j. Gemini API Key Validation Endpoint
     const valKeyRes = await fetch('http://localhost:3000/api/ai/validate-key', {
@@ -249,6 +251,10 @@ async function runAsyncTests() {
     });
     const valKeyData = await valKeyRes.json();
     assert(valKeyData.valid === false && valKeyData.error, 'API /api/ai/validate-key successfully intercepts invalid API key');
+
+    // 8j2. ESRI Zero-Watermark Basemap Integrity
+    const appJsContent = fs.readFileSync('./public/app.js', 'utf8');
+    assert(!appJsContent.includes('cartocdn.com') && appJsContent.includes('server.arcgisonline.com'), 'CartoCDN watermarked tiles replaced with zero-watermark ESRI ArcGIS Basemaps');
 
     // 8k. User Manual Data Layer & Multi-Lingual Help Box Index
     const { USER_MANUAL_CATEGORIES, USER_MANUAL_ITEMS } = await import('./src/data/user-manual.js');

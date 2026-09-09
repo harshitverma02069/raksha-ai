@@ -127,6 +127,36 @@
   ],
   "hazardReports": [
     {
+      "id": "rep-810267",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T16:20:10.267Z"
+    },
+    {
+      "id": "rep-452004",
+      "hazardType": "LANDSLIDE",
+      "reporterType": "resident",
+      "district": "Papum Pare",
+      "locationName": "Doimukh-Sagalee Highway",
+      "coordinates": {
+        "lat": 27.15,
+        "lon": 93.75
+      },
+      "description": "Mudflow cleared to one lane",
+      "severity": "LOW",
+      "status": "VERIFIED_COMMUNITY",
+      "timestamp": "2026-09-09T16:14:12.004Z"
+    },
+    {
       "id": "rep-138860",
       "hazardType": "LANDSLIDE",
       "reporterType": "resident",

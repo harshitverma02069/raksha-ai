@@ -810,13 +810,14 @@ async function handleAPI(req, res, pathname, parsedUrl) {
           .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
           .map(m => m.name.replace('models/', ''));
 
-        const chosenModel = supported.find(m => m.includes('2.0-flash'))
+        const chosenModel = supported.find(m => m === 'gemini-2.0-flash' || m.includes('2.0-flash'))
+          || supported.find(m => m.includes('2.0'))
+          || supported.find(m => m === 'gemini-1.5-pro' || m.includes('1.5-pro'))
           || supported.find(m => m.includes('1.5-flash-latest'))
           || supported.find(m => m.includes('1.5-flash'))
-          || supported.find(m => m.includes('1.5-pro'))
           || supported.find(m => m.includes('gemini-pro'))
           || supported[0]
-          || 'gemini-1.5-flash-latest';
+          || 'gemini-2.0-flash';
 
         process.env.GEMINI_MODEL = chosenModel;
 
@@ -824,7 +825,7 @@ async function handleAPI(req, res, pathname, parsedUrl) {
         res.end(JSON.stringify({
           valid: true,
           model: chosenModel,
-          availableModels: supported.slice(0, 5),
+          availableModels: supported.slice(0, 6),
           message: `Google Gemini connected successfully! Active model: ${chosenModel}`
         }));
         return;
@@ -843,12 +844,14 @@ async function handleAPI(req, res, pathname, parsedUrl) {
 
   // 7b. Check Server Gemini Key Status
   if (pathname === '/api/ai/key-status' && req.method === 'GET') {
-    const hasEnvKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
+    const rawKey = (process.env.GEMINI_API_KEY || '').trim();
+    const hasEnvKey = Boolean(rawKey && rawKey.startsWith('AIzaSy'));
     res.writeHead(200);
     res.end(JSON.stringify({
       success: true,
       configured: hasEnvKey,
       hasEnvKey: hasEnvKey,
+      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
       source: hasEnvKey ? 'env' : 'none'
     }));
     return;
@@ -934,16 +937,18 @@ Active Alerts: ${liveTelemetry.alerts || 'Monsoon slope saturation active on NH-
     if (activeKey) {
       const candidateModels = [
         process.env.GEMINI_MODEL,
-        'gemini-1.5-flash-latest',
         'gemini-2.0-flash',
-        'gemini-1.5-flash',
+        'gemini-2.0-flash-exp',
         'gemini-1.5-pro',
+        'gemini-1.5-pro-latest',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash',
         'gemini-pro'
       ].filter(Boolean);
 
       const uniqueModels = [...new Set(candidateModels)];
 
-      const systemPrompt = `You are arun_safe-ai (रक्षा / RAKSHA AI), the hyper-intelligent Arunachal Pradesh mountain disaster survival companion powered by Google Gemini.
+      const systemPrompt = `You are arun_safe-ai (रक्षा / RAKSHA AI), the hyper-intelligent Arunachal Pradesh mountain disaster survival companion powered by Google Gemini 2.0.
 You possess world-class expertise in Himalayan terrain, geotechnical slope stability (FoS), Flash flood hydrology, tribal jungle survival, and high-altitude emergency navigation.
 
 === CURRENT REAL-TIME DISTRICT TELEMETRY ===
@@ -975,17 +980,49 @@ User Query: "${query}"`;
 
       contents.push({
         role: 'user',
-        parts: [{ text: systemPrompt }]
+        parts: [{ text: query }]
       });
 
       for (const mod of uniqueModels) {
         try {
-          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${activeKey}`, {
+          // Send request with systemInstruction (supported on Gemini 2.0 & 1.5)
+          let requestBody = {
+            systemInstruction: {
+              parts: [{ text: systemPrompt }]
+            },
+            contents,
+            generationConfig: {
+              temperature: 0.4,
+              maxOutputTokens: 2048
+            }
+          };
+
+          let geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${activeKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents }),
-            signal: AbortSignal.timeout(3000)
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(9000)
           });
+
+          // If systemInstruction is rejected on older models, retry with embedded prompt
+          if (geminiRes.status === 400) {
+            const errData = await geminiRes.json().catch(() => ({}));
+            if (errData.error?.message?.includes('systemInstruction')) {
+              requestBody = {
+                contents: [
+                  { role: 'user', parts: [{ text: systemPrompt + '\n\n' + query }] }
+                ]
+              };
+              geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${activeKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+                signal: AbortSignal.timeout(9000)
+              });
+            } else {
+              break; // Invalid key or other permanent error
+            }
+          }
 
           if (geminiRes.ok) {
             const gData = await geminiRes.json();
@@ -1001,8 +1038,7 @@ User Query: "${query}"`;
               }));
               return;
             }
-          } else if (geminiRes.status === 400 || geminiRes.status === 403) {
-            // Key is invalid or rejected; abort loop immediately for instant local response
+          } else if (geminiRes.status === 403) {
             break;
           }
         } catch (geminiErr) {

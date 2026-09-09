@@ -144,8 +144,13 @@
         </div>
       </div>
 
-      <!-- Quick Selectors: District & Language -->
+      <!-- Quick Selectors: Gemini Connect & District & Language -->
       <div style="display: flex; align-items: center; gap: 8px;">
+        <button id="header-gemini-btn" onclick="window.raksha.openGeminiKeyModal()" class="gemini-header-pill" title="Configure Google Gemini 2.0 AI">
+          <span class="gemini-sparkle">✨</span>
+          <span id="header-gemini-text">Connect Gemini 2.0</span>
+        </button>
+
         <select id="district-quick-select" class="district-dropdown" onchange="window.raksha.setDistrict(this.value)" title="Switch Active District">
           <option value="Papum Pare">📍 Papum Pare (Itanagar)</option>
           <option value="Tawang">📍 Tawang (Sela Tunnel)</option>
